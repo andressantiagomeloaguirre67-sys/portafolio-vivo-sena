@@ -1,0 +1,2753 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vortex — Portafolio Vivo SENA · Plataforma Académica</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/environments/RoomEnvironment.js"></script>
+  <style>
+    /* =========================================================================
+       SISTEMA DE DISEÑO APPLE PRO / VISIONOS (SINCRONIZADO CON EL HOME)
+       Incluye Modo Oscuro OLED (por defecto) y Modo Blanco (Light Mode)
+       ========================================================================= */
+    :root,
+    html[data-theme="dark"] {
+      --bg-page: #000000;
+      --bg-glow-1: rgba(41, 151, 255, 0.08);
+      --bg-glow-2: rgba(94, 92, 230, 0.06);
+      --bg-navbar: rgba(10, 10, 14, 0.76);
+      --bg-card: rgba(18, 18, 24, 0.72);
+      --bg-card-hover: rgba(24, 24, 32, 0.84);
+      --bg-subcard: rgba(255, 255, 255, 0.035);
+      --bg-input: rgba(255, 255, 255, 0.045);
+      --bg-input-focus: rgba(255, 255, 255, 0.075);
+      --bg-pill: rgba(255, 255, 255, 0.06);
+      --bg-modal: rgba(20, 20, 28, 0.92);
+
+      --text-primary: #f5f5f7;
+      --text-secondary: #86868b;
+      --text-muted: #6e6e73;
+      --headline-grad-start: #ffffff;
+      --headline-grad-end: #a1a1a6;
+
+      --accent-blue: #2997ff;
+      --accent-blue-soft: rgba(41, 151, 255, 0.14);
+      --accent-emerald: #30d158;
+      --accent-amber: #ffd60a;
+      --accent-rose: #ff453a;
+
+      --border-hairline: rgba(255, 255, 255, 0.085);
+      --border-specular: rgba(255, 255, 255, 0.18);
+      --shadow-card: 0 20px 50px rgba(0, 0, 0, 0.55);
+
+      --btn-solid-bg: #f5f5f7;
+      --btn-solid-text: #000000;
+      --btn-solid-hover: #ffffff;
+
+      --font-apple: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: "SF Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    html[data-theme="light"] {
+      --bg-page: #f5f5f7;
+      --bg-glow-1: rgba(0, 113, 227, 0.06);
+      --bg-glow-2: rgba(88, 86, 214, 0.04);
+      --bg-navbar: rgba(255, 255, 255, 0.82);
+      --bg-card: rgba(255, 255, 255, 0.88);
+      --bg-card-hover: rgba(255, 255, 255, 0.98);
+      --bg-subcard: rgba(0, 0, 0, 0.028);
+      --bg-input: rgba(0, 0, 0, 0.035);
+      --bg-input-focus: #ffffff;
+      --bg-pill: rgba(0, 0, 0, 0.05);
+      --bg-modal: rgba(255, 255, 255, 0.96);
+
+      --text-primary: #1d1d1f;
+      --text-secondary: #515154;
+      --text-muted: #86868b;
+      --headline-grad-start: #1d1d1f;
+      --headline-grad-end: #515154;
+
+      --accent-blue: #0071e3;
+      --accent-blue-soft: rgba(0, 113, 227, 0.10);
+      --accent-emerald: #1d9bf0;
+      --accent-amber: #d97706;
+      --accent-rose: #e11d48;
+
+      --border-hairline: rgba(0, 0, 0, 0.085);
+      --border-specular: rgba(0, 113, 227, 0.28);
+      --shadow-card: 0 14px 36px rgba(0, 0, 0, 0.055);
+
+      --btn-solid-bg: #1d1d1f;
+      --btn-solid-text: #ffffff;
+      --btn-solid-hover: #0071e3;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background-color: var(--bg-page);
+      background-image:
+        radial-gradient(circle at 14% 8%, var(--bg-glow-1) 0%, transparent 42%),
+        radial-gradient(circle at 86% 18%, var(--bg-glow-2) 0%, transparent 46%);
+      color: var(--text-primary);
+      font-family: var(--font-apple);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      transition: background-color 0.35s ease, color 0.35s ease;
+    }
+
+    /* Tipografía estilo Apple Product Page (igual al Home) */
+    .eyebrow-label {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent-blue);
+    }
+
+    .apple-headline {
+      font-size: clamp(1.85rem, 3.2vw, 2.75rem);
+      font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: -0.035em;
+      background: linear-gradient(180deg, var(--headline-grad-start) 0%, var(--headline-grad-end) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .apple-subheadline {
+      font-size: 1rem;
+      line-height: 1.6;
+      letter-spacing: -0.01em;
+      color: var(--text-secondary);
+    }
+
+    /* Navbar translúcida estilo Apple */
+    .apple-navbar {
+      height: 68px;
+      background: var(--bg-navbar);
+      backdrop-filter: saturate(180%) blur(24px);
+      -webkit-backdrop-filter: saturate(180%) blur(24px);
+      border-bottom: 1px solid var(--border-hairline);
+      transition: background 0.35s ease, border-color 0.35s ease;
+    }
+
+    /* Tarjetas Bento Grid */
+    .bento-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      border: 1px solid var(--border-hairline);
+      border-radius: 24px;
+      box-shadow: var(--shadow-card);
+      transition: border-color 0.28s ease, background 0.28s ease, transform 0.28s ease, box-shadow 0.28s ease;
+    }
+
+    .bento-card-interactive:hover {
+      border-color: var(--border-specular);
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+    }
+
+    .bento-subcard {
+      background: var(--bg-subcard);
+      border: 1px solid var(--border-hairline);
+      border-radius: 16px;
+      transition: border-color 0.22s ease, background 0.22s ease;
+    }
+
+    .bento-subcard:hover {
+      border-color: var(--border-specular);
+    }
+
+    /* Entradas de formulario limpias */
+    .apple-input {
+      width: 100%;
+      padding: 11px 15px;
+      border-radius: 14px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-hairline);
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      line-height: 1.5;
+      outline: none;
+      transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    textarea.apple-input {
+      border-radius: 16px;
+      padding: 12px 16px;
+      line-height: 1.58;
+      resize: vertical;
+    }
+
+    input[type="file"].apple-input::file-selector-button {
+      margin-right: 10px;
+      padding: 6px 14px;
+      border-radius: 980px;
+      border: 1px solid var(--border-hairline);
+      background: var(--bg-pill);
+      color: var(--text-primary);
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    input[type="file"].apple-input::file-selector-button:hover {
+      border-color: var(--border-specular);
+    }
+
+    /* Escenario difuminado del Robot Aegis (sin bordes ni recuadros marcados) */
+    #aegis-chat-stage {
+      background: radial-gradient(
+        ellipse 72% 72% at 50% 48%,
+        rgba(30, 136, 255, 0.16) 0%,
+        rgba(255, 30, 56, 0.08) 42%,
+        transparent 78%
+      );
+      -webkit-mask-image: radial-gradient(
+        ellipse 88% 88% at 50% 48%,
+        #000000 58%,
+        rgba(0, 0, 0, 0.65) 78%,
+        transparent 100%
+      );
+      mask-image: radial-gradient(
+        ellipse 88% 88% at 50% 48%,
+        #000000 58%,
+        rgba(0, 0, 0, 0.65) 78%,
+        transparent 100%
+      );
+    }
+
+    #aegis-chat-body {
+      -webkit-mask-image: radial-gradient(
+        ellipse 84% 86% at 52% 50%,
+        #000000 60%,
+        rgba(0, 0, 0, 0.7) 78%,
+        rgba(0, 0, 0, 0.2) 90%,
+        transparent 100%
+      );
+      mask-image: radial-gradient(
+        ellipse 84% 86% at 52% 50%,
+        #000000 60%,
+        rgba(0, 0, 0, 0.7) 78%,
+        rgba(0, 0, 0, 0.2) 90%,
+        transparent 100%
+      );
+      filter: contrast(1.05) drop-shadow(0 16px 32px rgba(0, 0, 0, 0.45));
+    }
+
+    html[data-theme="light"] #aegis-chat-body {
+      filter: contrast(1.05) drop-shadow(0 14px 28px rgba(15, 23, 42, 0.16));
+    }
+
+    /* =========================================================================
+       INTERFAZ DE AGENTE IA ESTILO CLAUDE (ROBOT IZQUIERDA + CHAT DERECHA)
+       ========================================================================= */
+    .claude-shell {
+      display: grid;
+      grid-template-columns: 380px minmax(0, 1fr);
+      gap: 20px;
+      align-items: stretch;
+      min-height: 680px;
+    }
+
+    @media (max-width: 1024px) {
+      .claude-shell {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .claude-left-dock {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px;
+    }
+
+    .claude-chat-window {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 700px;
+      overflow: hidden;
+    }
+
+    .claude-chat-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border-hairline);
+      background: var(--bg-subcard);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .claude-chat-stream {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      scroll-behavior: smooth;
+    }
+
+    .claude-msg-row {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      animation: claudeFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .claude-msg-row.is-user {
+      flex-direction: row-reverse;
+    }
+
+    @keyframes claudeFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .claude-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      border: 1px solid var(--border-hairline);
+    }
+
+    .claude-avatar-ai {
+      background: linear-gradient(135deg, rgba(30, 136, 255, 0.22), rgba(255, 30, 56, 0.22));
+      color: var(--text-primary);
+      box-shadow: 0 0 18px rgba(30, 136, 255, 0.18);
+    }
+
+    .claude-avatar-user {
+      background: var(--btn-solid-bg);
+      color: var(--btn-solid-text);
+    }
+
+    .claude-avatar-inst {
+      background: rgba(255, 214, 10, 0.16);
+      color: var(--accent-amber);
+      border-color: rgba(255, 214, 10, 0.35);
+    }
+
+    .claude-bubble {
+      max-width: 84%;
+      padding: 16px 20px;
+      border-radius: 20px;
+      font-size: 0.86rem;
+      line-height: 1.62;
+      border: 1px solid var(--border-hairline);
+    }
+
+    .claude-bubble-user {
+      background: var(--bg-subcard);
+      border-top-right-radius: 6px;
+    }
+
+    .claude-bubble-ai {
+      background: rgba(255, 255, 255, 0.02);
+      border-top-left-radius: 6px;
+    }
+
+    html[data-theme="light"] .claude-bubble-ai {
+      background: rgba(0, 0, 0, 0.018);
+    }
+
+    .claude-composer-wrap {
+      padding: 14px 20px 18px;
+      border-top: 1px solid var(--border-hairline);
+      background: var(--bg-subcard);
+    }
+
+    .claude-composer-box {
+      border-radius: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-hairline);
+      padding: 12px 14px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .claude-composer-box:focus-within {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px var(--accent-blue-soft);
+    }
+
+    .claude-prompt-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 980px;
+      font-size: 0.74rem;
+      font-weight: 500;
+      background: var(--bg-pill);
+      border: 1px solid var(--border-hairline);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .claude-prompt-chip:hover {
+      color: var(--text-primary);
+      border-color: var(--border-specular);
+      transform: translateY(-1px);
+    }
+
+    .apple-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .apple-input:focus {
+      background: var(--bg-input-focus);
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px var(--accent-blue-soft);
+    }
+
+    .apple-label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      letter-spacing: -0.005em;
+    }
+
+    /* Botones Píldora idénticos al Home */
+    .btn-apple-solid {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 11px 22px;
+      border-radius: 980px;
+      background: var(--btn-solid-bg);
+      color: var(--btn-solid-text);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), background 0.22s ease, box-shadow 0.22s ease;
+    }
+
+    .btn-apple-solid:hover {
+      background: var(--btn-solid-hover);
+      transform: scale(1.015);
+    }
+
+    .btn-apple-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 980px;
+      background: var(--bg-pill);
+      color: var(--text-primary);
+      border: 1px solid var(--border-hairline);
+      font-size: 0.82rem;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      transition: border-color 0.22s ease, background 0.22s ease, transform 0.22s ease;
+    }
+
+    .btn-apple-secondary:hover {
+      border-color: var(--border-specular);
+      transform: scale(1.015);
+    }
+
+    /* Píldoras de navegación segmentada estilo iOS/macOS */
+    .segmented-bar {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 5px;
+      border-radius: 980px;
+      background: var(--bg-subcard);
+      border: 1px solid var(--border-hairline);
+    }
+
+    .seg-tab {
+      padding: 8px 18px;
+      border-radius: 980px;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: transparent;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.22s ease;
+    }
+
+    .seg-tab:hover {
+      color: var(--text-primary);
+    }
+
+    .seg-tab.active {
+      background: var(--btn-solid-bg);
+      color: var(--btn-solid-text);
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    }
+
+    /* Badges sutiles */
+    .apple-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 11px;
+      border-radius: 980px;
+      background: var(--bg-pill);
+      border: 1px solid var(--border-hairline);
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .text-muted {
+      color: var(--text-secondary);
+    }
+
+    .divider-hairline {
+      border-color: var(--border-hairline);
+    }
+
+    /* Botón de cambio de tema (Modo Oscuro / Modo Blanco) */
+    .theme-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 15px;
+      border-radius: 980px;
+      background: var(--bg-pill);
+      border: 1px solid var(--border-hairline);
+      color: var(--text-primary);
+      font-size: 0.80rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.25s ease, background 0.25s ease, transform 0.2s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      border-color: var(--border-specular);
+      transform: scale(1.02);
+    }
+
+    /* Adaptación automática en Modo Blanco */
+    html[data-theme="light"] .text-white {
+      color: #1d1d1f !important;
+    }
+    html[data-theme="light"] .text-slate-200,
+    html[data-theme="light"] .text-slate-300,
+    html[data-theme="light"] .text-zinc-200 {
+      color: #3a3a3c !important;
+    }
+    html[data-theme="light"] .text-slate-400,
+    html[data-theme="light"] .text-zinc-400 {
+      color: #6e6e73 !important;
+    }
+    html[data-theme="light"] .text-emerald-300,
+    html[data-theme="light"] .text-emerald-400 {
+      color: #15803d !important;
+    }
+    html[data-theme="light"] .text-sky-300,
+    html[data-theme="light"] .text-sky-400 {
+      color: #0369a1 !important;
+    }
+    html[data-theme="light"] .text-amber-300,
+    html[data-theme="light"] .text-amber-400 {
+      color: #b45309 !important;
+    }
+    html[data-theme="light"] .text-rose-300,
+    html[data-theme="light"] .text-rose-200 {
+      color: #be123c !important;
+    }
+    html[data-theme="light"] .bg-emerald-950\/90,
+    html[data-theme="light"] .bg-emerald-950\/80 {
+      background-color: rgba(220, 252, 231, 0.92) !important;
+      color: #14532d !important;
+      border-color: rgba(22, 163, 74, 0.35) !important;
+    }
+    html[data-theme="light"] .bg-rose-950\/90,
+    html[data-theme="light"] .bg-rose-950\/80,
+    html[data-theme="light"] .bg-rose-950\/60 {
+      background-color: rgba(255, 228, 230, 0.92) !important;
+      color: #881337 !important;
+      border-color: rgba(225, 29, 72, 0.35) !important;
+    }
+    html[data-theme="light"] .bg-amber-950\/80 {
+      background-color: rgba(254, 243, 199, 0.92) !important;
+      color: #78350f !important;
+      border-color: rgba(217, 119, 6, 0.35) !important;
+    }
+  </style>
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem("vortex_theme") || "dark";
+      document.documentElement.setAttribute("data-theme", savedTheme);
+    })();
+  </script>
+</head>
+<body class="min-h-screen flex flex-col">
+  <!-- =========================================================================
+       BARRA SUPERIOR GLOBAL ESTILO APPLE GLASS (MISMA TIPOGRAFÍA Y MARCA DEL HOME)
+       ========================================================================= -->
+  <header class="apple-navbar sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto h-full px-6 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <a href="/" class="inline-flex items-center gap-3 text-decoration-none group" title="Volver al Home 3D">
+          <span class="w-10 h-10 rounded-full flex items-center justify-center border divider-hairline" style="background: var(--bg-pill);">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" />
+              <path d="M2 17l10 5 10-5" />
+              <path d="M2 12l10 5 10-5" />
+            </svg>
+          </span>
+          <div class="flex items-center gap-2.5">
+            <span class="text-xl font-bold tracking-tight">Vortex</span>
+            <span class="apple-pill">ADSO Pro</span>
+          </div>
+        </a>
+        <span id="navbar-context-label" class="hidden md:inline-block text-xs text-muted border-l divider-hairline pl-4">
+          Plataforma Académica · Portafolio Vivo SENA
+        </span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button type="button" onclick="alternarTema()" class="theme-toggle-btn" id="btn-theme-toggle" title="Cambiar entre Modo Oscuro y Modo Blanco">
+          <svg id="icon-theme-sun" class="w-4 h-4 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke-linecap="round" />
+          </svg>
+          <svg id="icon-theme-moon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span id="label-theme-toggle">Modo Blanco</span>
+        </button>
+
+        <div id="user-header" class="hidden items-center gap-3 pl-3 border-l divider-hairline">
+          <div class="text-right hidden sm:block">
+            <div class="flex items-center justify-end gap-1.5">
+              <span id="header-rol-badge" class="apple-pill !text-[10px] !py-0.5 !px-2 font-mono"></span>
+              <span id="header-nombre" class="text-xs font-semibold leading-tight"></span>
+            </div>
+            <div id="header-rol-doc" class="text-[11px] text-muted font-mono mt-0.5"></div>
+          </div>
+          <button onclick="cerrarSesion()" class="btn-apple-secondary text-xs">
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       CONTENEDOR PRINCIPAL DEL SISTEMA
+       ========================================================================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-10">
+    <!-- Notificación Global -->
+    <div id="alerta-global" class="hidden mb-6 p-4 rounded-2xl border text-xs font-medium"></div>
+
+    <!-- =========================================================================
+         1. VISTA DE AUTENTICACIÓN INSTITUCIONAL (LIMPIA PARA PRODUCCIÓN)
+         ========================================================================= -->
+    <section id="vista-auth" class="max-w-md mx-auto py-8 space-y-8">
+      <div class="text-center space-y-3">
+        <p class="eyebrow-label">PORTAFOLIO VIVO SENA · ACCESO INSTITUCIONAL</p>
+        <h1 class="apple-headline !text-3xl sm:!text-4xl">Inicia sesión en Vortex.</h1>
+        <p class="apple-subheadline !text-sm">
+          Ingresa con tu documento de identidad. El sistema cargará automáticamente tu entorno de Aprendiz, Instructor o Coordinación.
+        </p>
+      </div>
+
+      <div class="bento-card p-8 space-y-6">
+        <div class="flex items-center justify-between border-b divider-hairline pb-4">
+          <div class="segmented-bar w-full justify-center">
+            <button id="tab-btn-login" type="button" onclick="cambiarTabAuth('login')" class="seg-tab active flex-1">
+              Iniciar sesión
+            </button>
+            <button id="tab-btn-activar" type="button" onclick="cambiarTabAuth('activar')" class="seg-tab flex-1">
+              Activar cuenta
+            </button>
+          </div>
+        </div>
+
+        <!-- Formulario Login -->
+        <form id="form-login" onsubmit="iniciarSesion(event)" class="space-y-4">
+          <div>
+            <label class="apple-label" for="login-documento">Número de Documento</label>
+            <input id="login-documento" type="text" required autocomplete="username" placeholder="Ingresa tu número de documento" class="apple-input" />
+          </div>
+          <div>
+            <label class="apple-label" for="login-password">Contraseña</label>
+            <input id="login-password" type="password" required autocomplete="current-password" placeholder="••••••••" class="apple-input" />
+          </div>
+          <div class="pt-2">
+            <button type="submit" class="btn-apple-solid w-full py-3">
+              <span>Entrar al sistema</span>
+              <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M6 3l5 5-5 5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+        </form>
+
+        <!-- Formulario Activar Cuenta -->
+        <form id="form-activar" onsubmit="activarCuenta(event)" class="hidden space-y-4">
+          <div>
+            <label class="apple-label" for="act-documento">Documento de Identidad</label>
+            <input id="act-documento" type="text" required placeholder="Documento registrado en tu ficha" class="apple-input" />
+          </div>
+          <div>
+            <label class="apple-label" for="act-token">Token de Activación (recibido por correo)</label>
+            <input id="act-token" type="text" required placeholder="Código de invitación institucional" class="apple-input" />
+          </div>
+          <div>
+            <label class="apple-label" for="act-password">Definir Contraseña (mín. 8 caracteres)</label>
+            <input id="act-password" type="password" required minlength="8" placeholder="Mínimo 8 caracteres" class="apple-input" />
+          </div>
+          <label class="flex items-start gap-2.5 text-xs text-muted pt-1 cursor-pointer">
+            <input id="act-habeas" type="checkbox" required class="mt-0.5 rounded" />
+            <span>Acepto la política institucional de tratamiento de datos personales (Habeas Data SENA).</span>
+          </label>
+          <button type="submit" class="btn-apple-solid w-full py-3">
+            Activar mi cuenta SENA
+          </button>
+        </form>
+
+        <div class="pt-4 border-t divider-hairline flex items-center justify-between text-[11px] text-muted">
+          <span>Autenticación JWT · Ley 1581 Habeas Data</span>
+          <a href="/" class="hover:underline" style="color: var(--accent-blue);">← Volver al Inicio 3D</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         2. ESPACIO DE TRABAJO AUTENTICADO (VISTAS DEDICADAS POR ROL)
+         ========================================================================= -->
+    <section id="vista-app" class="hidden space-y-8">
+      <!-- Barra superior de navegación segmentada según rol -->
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b divider-hairline pb-5">
+        <nav class="segmented-bar" aria-label="Vistas del sistema">
+          <!-- Vistas exclusivas APRENDIZ: 1) Agente Aegis IA (Estilo Claude) y 2) Mi Proyecto & Equipo Scrum -->
+          <button id="nav-agente" type="button" onclick="mostrarModulo('agente')" class="seg-tab hidden">
+            ✦ Agente Aegis IA
+          </button>
+          <button id="nav-grupo" type="button" onclick="mostrarModulo('grupo')" class="seg-tab hidden">
+            Mi Proyecto &amp; Equipo Scrum
+          </button>
+          <!-- Vista exclusiva INSTRUCTOR (y disponible para ADMIN) -->
+          <button id="nav-instructor" type="button" onclick="mostrarModulo('instructor')" class="seg-tab hidden">
+            Panel Docente de Ficha
+          </button>
+          <!-- Vista exclusiva ADMIN / COORDINACIÓN -->
+          <button id="nav-admin" type="button" onclick="mostrarModulo('admin')" class="seg-tab hidden">
+            Coordinación Académica
+          </button>
+          <!-- Vista transversal: Vitrina Pública Sandbox -->
+          <button id="nav-feed" type="button" onclick="mostrarModulo('feed')" class="seg-tab">
+            Vitrina de Proyectos (Sandbox)
+          </button>
+        </nav>
+
+        <div class="flex items-center gap-2.5">
+          <a href="/" class="btn-apple-secondary text-xs">
+            <span>Inicio 3D</span>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M6 3l5 5-5 5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- =====================================================================
+           VISTA 1A (ROL APRENDIZ): AGENTE AEGIS IA · ORGANIZACIÓN ESTILO CLAUDE
+           (Robot 3D e Información del Equipo a la Izquierda + Chat Completo y Persistente a la Derecha)
+           ===================================================================== -->
+      <div id="modulo-agente" class="hidden space-y-5">
+        <div class="claude-shell">
+          <!-- PANEL IZQUIERDO: Escenario 3D del Robot + Contexto del Grupo Scrum -->
+          <aside class="bento-card claude-left-dock">
+            <div class="space-y-4">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <p class="eyebrow-label !text-[10px]">AEGIS NEURAL ENGINE · MENTOR ADSO</p>
+                  <h3 class="text-lg font-semibold mt-0.5">Instructor &amp; Guardián IA</h3>
+                </div>
+                <span id="badge-estado-robot" class="apple-pill !text-[10px]">EN LÍNEA</span>
+              </div>
+
+              <!-- Escenario de Estudio 3D de Aegis (Robot a la izquierda con ojos 3D al cursor y 280 cuadros tricolor difuminado sin recuadro) -->
+              <div id="aegis-chat-stage" class="relative w-full h-72 rounded-2xl overflow-hidden flex items-center justify-center" style="perspective: 950px;">
+                <div id="aegis-chat-aura" class="absolute w-52 h-52 rounded-full blur-2xl transition-all duration-500 pointer-events-none" style="background: radial-gradient(circle, rgba(30,136,255,0.22) 0%, rgba(255,30,56,0.14) 50%, transparent 72%);"></div>
+
+                <!-- Canvas WebGL 3D: 280 Cuadros Gris, Azul y Rojo saliendo desde las 4 esquinas y uniéndose detrás del robot -->
+                <canvas id="canvas-agente-chat" class="absolute inset-0 w-full h-full block pointer-events-none z-10"></canvas>
+
+                <!-- Réplica del Guardián Aegis con movimiento 3D exclusivo en los ojos -->
+                <div id="aegis-chat-rig" class="relative z-10 h-64 select-none transition-all duration-700" style="aspect-ratio: 1840 / 1536; transform-style: preserve-3d; opacity: 0; transform: scale(0.9);">
+                  <img
+                    id="aegis-chat-body"
+                    src="/assets/robot.png?v=4"
+                    alt="Guardián Cibernético Aegis"
+                    class="w-full h-full object-contain block"
+                  />
+                  <!-- Ojo Izquierdo 3D (53.32%, 23.50%) -->
+                  <span class="absolute flex items-center justify-center rounded-full pointer-events-none" style="left: 53.32%; top: 23.50%; width: 2.5%; height: 2.1%; transform: translate(-50%, -50%); background: rgba(15, 2, 6, 0.92);">
+                    <span id="chat-eye-left" class="block rounded-full" style="width: 68%; height: 78%; background: radial-gradient(circle at 40% 40%, #fff 0%, #ffccd5 22%, #ff1e38 58%, #990012 95%); box-shadow: 0 0 8px 2px rgba(255, 30, 56, 0.95), 0 0 16px 4px rgba(255, 15, 45, 0.6);"></span>
+                  </span>
+                  <!-- Ojo Derecho 3D (59.40%, 23.18%) -->
+                  <span class="absolute flex items-center justify-center rounded-full pointer-events-none" style="left: 59.40%; top: 23.18%; width: 2.5%; height: 2.1%; transform: translate(-50%, -50%); background: rgba(15, 2, 6, 0.92);">
+                    <span id="chat-eye-right" class="block rounded-full" style="width: 68%; height: 78%; background: radial-gradient(circle at 40% 40%, #fff 0%, #ffccd5 22%, #ff1e38 58%, #990012 95%); box-shadow: 0 0 8px 2px rgba(255, 30, 56, 0.95), 0 0 16px 4px rgba(255, 15, 45, 0.6);"></span>
+                  </span>
+                </div>
+
+                <div class="absolute bottom-2.5 left-2.5 right-2.5 z-20 flex items-center justify-center pointer-events-none">
+                  <span id="robot-subtitulo-estado" class="text-[10.5px] text-zinc-200 font-medium bg-black/75 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 truncate">
+                    Aegis 3D en línea · Seguimiento ocular activo
+                  </span>
+                </div>
+              </div>
+
+              <!-- Tarjeta de Contexto del Equipo Scrum vinculada al Agente -->
+              <div class="bento-subcard p-4 space-y-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="eyebrow-label !text-[10px]">CONTEXTO DEL EQUIPO</span>
+                  <span id="agente-side-ficha" class="apple-pill !text-[10px] !py-0.5 !px-2">Ficha —</span>
+                </div>
+                <div id="agente-side-grupo" class="text-sm font-semibold">—</div>
+                <div id="agente-side-proyecto" class="text-xs text-muted line-clamp-2">Cargando proyecto del grupo...</div>
+                <div id="agente-side-miembros" class="flex flex-wrap gap-1.5 pt-1"></div>
+              </div>
+            </div>
+
+            <!-- Pie del panel izquierdo: Reglas y limitaciones de Aegis + Acceso directo al proyecto -->
+            <div class="space-y-3 border-t divider-hairline pt-3">
+              <div class="text-[11px] text-muted leading-relaxed">
+                <strong>Aegis · Tutor de Ingeniería SENA</strong><br />
+                • Valida la originalidad de tu proyecto para evitar duplicados.<br />
+                • Guía tu arquitectura paso a paso sin hacerte las tareas.<br />
+                • Fomenta tu autoaprendizaje con documentación oficial.
+              </div>
+              <button type="button" onclick="mostrarModulo('grupo')" class="btn-apple-secondary w-full !text-xs">
+                Ir a Ficha Técnica y Entrega (.zip) →
+              </button>
+            </div>
+          </aside>
+
+          <!-- PANEL DERECHO: Conversación Completa Estilo Claude (Limpia y Persistente) -->
+          <div class="bento-card claude-chat-window">
+            <!-- Cabecera superior del Chat -->
+            <div class="claude-chat-header">
+              <div class="flex items-center gap-3">
+                <span class="w-2.5 h-2.5 rounded-full" style="background: var(--accent-emerald); box-shadow: 0 0 10px var(--accent-emerald);"></span>
+                <div>
+                  <div class="text-sm font-semibold">Aegis · Tutor Académico &amp; Ingeniería de Software</div>
+                  <div id="claude-chat-subtitle" class="text-[11px] text-muted">
+                    Validación de originalidad y mentoría técnica para aprendices SENA
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button type="button" onclick="limpiarHistorialChatLocal()" class="btn-apple-secondary !py-1.5 !px-3 !text-xs" title="Reiniciar conversación">
+                  Nueva conversación
+                </button>
+              </div>
+            </div>
+
+            <!-- Hilo de Mensajes (Scrollable) -->
+            <div id="claude-chat-stream" class="claude-chat-stream"></div>
+
+            <!-- Barra Inferior de Composición Limpia Estilo Claude -->
+            <form onsubmit="consultarAgenteIA(event)" class="claude-composer-wrap">
+              <div class="claude-composer-box flex items-end gap-3">
+                <textarea
+                  id="ia-mensaje"
+                  rows="2"
+                  required
+                  onkeydown="manejarEnterChat(event)"
+                  placeholder="Cuéntale a Aegis qué proyecto tienes en mente o qué duda técnica estás investigando... (Enter para enviar)"
+                  class="w-full bg-transparent text-sm outline-none resize-none leading-relaxed"
+                  style="color: var(--text-primary);"
+                ></textarea>
+                <button type="submit" id="btn-enviar-chat" class="btn-apple-solid !py-2.5 !px-5 !text-xs flex-shrink-0">
+                  <span>Enviar</span>
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 13V3M4 7l4-4 4 4" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================================
+           VISTA 1B (ROL APRENDIZ): MI PROYECTO, ENTREGA SANDBOX & BITÁCORA SCRUM
+           ===================================================================== -->
+      <div id="modulo-grupo" class="hidden space-y-6">
+        <!-- Encabezado y KPIs en tiempo real del Aprendiz (Con conteo real de integrantes corregido) -->
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bento-card p-5 space-y-1">
+            <span class="eyebrow-label !text-[10px]">EQUIPO SCRUM ASIGNADO</span>
+            <div id="kpi-apr-grupo" class="text-lg font-semibold truncate">—</div>
+            <div id="kpi-apr-ficha" class="text-xs text-muted">Cargando ficha...</div>
+          </div>
+          <div class="bento-card p-5 space-y-1">
+            <span class="eyebrow-label !text-[10px]">ESTADO DEL PROYECTO</span>
+            <div id="kpi-apr-estado" class="text-lg font-semibold">—</div>
+            <div id="kpi-apr-entrega" class="text-xs text-muted">Versión alojada</div>
+          </div>
+          <div class="bento-card p-5 space-y-1">
+            <span class="eyebrow-label !text-[10px]">REVISIONES DOCENTES</span>
+            <div id="kpi-apr-revisiones" class="text-lg font-semibold">0</div>
+            <div id="kpi-apr-revisiones-sub" class="text-xs text-muted">Observaciones del instructor</div>
+          </div>
+          <div class="bento-card p-5 space-y-1">
+            <span class="eyebrow-label !text-[10px]">BITÁCORA INMUTABLE</span>
+            <div id="kpi-apr-bitacora" class="text-lg font-semibold">0 eventos</div>
+            <div class="text-xs text-muted">Trazabilidad por documento</div>
+          </div>
+        </div>
+
+        <div class="grid lg:grid-cols-12 gap-6 items-start">
+          <!-- Columna Izquierda (Span 7): Ficha Técnica + Despliegue de Código al Sandbox -->
+          <div class="lg:col-span-7 space-y-6">
+            <!-- Tarjeta 1: Integrantes y Definición del Proyecto -->
+            <div class="bento-card p-7 space-y-5">
+              <div class="flex flex-wrap items-start justify-between gap-3 border-b divider-hairline pb-4">
+                <div>
+                  <p class="eyebrow-label">ARQUITECTURA DEL EQUIPO · 1 PROYECTO POR GRUPO</p>
+                  <h3 class="text-xl font-semibold mt-1">Ficha Técnica del Proyecto</h3>
+                  <p id="info-mi-grupo" class="text-xs font-medium mt-0.5" style="color: var(--accent-blue);"></p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <button type="button" onclick="mostrarModulo('agente')" class="btn-apple-secondary !text-xs">
+                    ✦ Consultar a Aegis IA
+                  </button>
+                  <button id="btn-ver-mi-sandbox" type="button" class="hidden btn-apple-solid !py-2 !px-4 !text-xs">
+                    ▶ Abrir mi entrega
+                  </button>
+                  <button type="button" onclick="retirarProyectoGrupo()" class="btn-apple-secondary !text-xs">
+                    Retirar proyecto
+                  </button>
+                </div>
+              </div>
+
+              <!-- Chips de integrantes reales del equipo Scrum -->
+              <div class="space-y-1.5">
+                <span class="eyebrow-label !text-[10px]">INTEGRANTES ACTIVOS DEL GRUPO SCRUM</span>
+                <div id="chips-integrantes-grupo" class="flex flex-wrap gap-2"></div>
+              </div>
+
+              <form onsubmit="guardarIdeaProyecto(event)" class="space-y-4">
+                <div class="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="apple-label" for="proy-titulo">Título Único del Proyecto</label>
+                    <input id="proy-titulo" type="text" required class="apple-input" placeholder="Nombre oficial del proyecto" />
+                  </div>
+                  <div>
+                    <label class="apple-label" for="proy-tecnologias">Stack Tecnológico (separado por comas)</label>
+                    <input id="proy-tecnologias" type="text" placeholder="HTML5, Tailwind, JavaScript, Python, PostgreSQL" class="apple-input" />
+                  </div>
+                </div>
+                <div>
+                  <label class="apple-label" for="proy-introduccion">Alcance y Justificación Técnica</label>
+                  <textarea id="proy-introduccion" rows="4" required class="apple-input" placeholder="Resumen ejecutivo del problema y solución desarrollada..."></textarea>
+                </div>
+                <button type="submit" class="btn-apple-solid">
+                  Guardar / Actualizar ficha técnica
+                </button>
+              </form>
+            </div>
+
+            <!-- Tarjeta 2: Subida / Reemplazo de la Entrega Más Reciente -->
+            <div class="bento-card p-7 space-y-4">
+              <div>
+                <p class="eyebrow-label">ALOJAMIENTO OPTIMIZADO · 1 SOLA VERSIÓN ACTIVA</p>
+                <h3 class="text-lg font-semibold mt-1">Despliegue de código al Sandbox</h3>
+                <p class="text-xs text-muted mt-0.5">
+                  Cada nueva entrega reemplaza el paquete anterior en el servidor para optimizar almacenamiento, conservando intactos los comentarios del instructor.
+                </p>
+              </div>
+
+              <form onsubmit="subirReemplazarCodigo(event)" class="space-y-4 pt-1">
+                <div class="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="apple-label" for="entrega-zip">Paquete `.zip` del proyecto</label>
+                    <input id="entrega-zip" type="file" accept=".zip" class="apple-input !py-2 text-xs" />
+                  </div>
+                  <div>
+                    <label class="apple-label" for="entrega-nota">Nota de versión / corrección aplicada</label>
+                    <input id="entrega-nota" type="text" required placeholder="Ej: Entrega #3 - Se normalizó el modelo de datos" class="apple-input" />
+                  </div>
+                </div>
+                <div>
+                  <label class="apple-label" for="entrega-html">Código `index.html` directo para el Sandbox (alternativa rápida al .zip)</label>
+                  <textarea id="entrega-html" rows="4" placeholder="Pega aquí tu código HTML5 autocontenido si deseas desplegar sin archivo .zip..."
+                    class="apple-input font-mono text-xs"></textarea>
+                </div>
+                <button type="submit" class="btn-apple-solid">
+                  Desplegar versión en Sandbox
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- Columna Derecha (Span 5): Observaciones del Instructor + Bitácora Inmutable -->
+          <div class="lg:col-span-5 space-y-6">
+            <!-- Tarjeta 3: Observaciones del Instructor a mi Grupo -->
+            <div class="bento-card p-7 space-y-4">
+              <div>
+                <p class="eyebrow-label">EVALUACIÓN CONTINUA</p>
+                <h3 class="text-lg font-semibold mt-1">Observaciones del Instructor a nuestro proyecto</h3>
+                <p class="text-xs text-muted">Responde aquí cada observación indicando en qué entrega quedó solucionada.</p>
+              </div>
+              <div id="lista-comentarios-mi-grupo" class="space-y-3"></div>
+            </div>
+
+            <!-- Tarjeta 4: Bitácora Inmutable -->
+            <div class="bento-card p-7 space-y-4">
+              <div>
+                <p class="eyebrow-label">TRAZABILIDAD DE AUTORÍA</p>
+                <h3 class="text-lg font-semibold mt-1">Bitácora inmutable del grupo (`HistorialProyecto`)</h3>
+                <p class="text-xs text-muted">Constancia firmada con nombre completo, documento y fecha exacta de cada cambio.</p>
+              </div>
+              <div id="lista-bitacora" class="space-y-2.5 max-h-80 overflow-y-auto pr-1"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================================
+           VISTA 2 (ROL INSTRUCTOR): PANEL DOCENTE DE FICHA
+           ===================================================================== -->
+      <div id="modulo-instructor" class="hidden space-y-6">
+        <!-- KPIs de la Ficha Seleccionada -->
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bento-card p-5 space-y-1">
+            <span class="eyebrow-label !text-[10px]">FICHA SELECCIONADA</span>
+            <div id="kpi-inst-ficha" class="text-lg font-semibold">—</div>
+            <div id="kpi-inst-programa" class="text-xs text-muted truncate">ADSO</div>
+          </div>
+          <div class="bento-card p-5 space-y-1">
+            <span class="eyebrow-label !text-[10px]">APRENDICES ACTIVOS</span>
+            <div id="kpi-inst-activos" class="text-lg font-semibold">0</div>
+            <div id="kpi-inst-suspendidos" class="text-xs text-muted">0 suspendidos (No-Delete)</div>
+          </div>
+          <div class="bento-card p-5 space-y-1">
+            <span class="eyebrow-label !text-[10px]">EQUIPOS SCRUM Y PROYECTOS</span>
+            <div id="kpi-inst-grupos" class="text-lg font-semibold">0 grupos</div>
+            <div id="kpi-inst-proyectos" class="text-xs text-muted">0 proyectos registrados</div>
+          </div>
+          <div class="bento-card p-5 space-y-1">
+            <span class="eyebrow-label !text-[10px]">RELEVO HUMANO-IA</span>
+            <div id="kpi-inst-escaladas" class="text-lg font-semibold">0 pendientes</div>
+            <div class="text-xs text-muted">Consultas escaladas por Aegis</div>
+          </div>
+        </div>
+
+        <!-- Fila Superior Docente: 3 Tarjetas Bento -->
+        <div class="grid lg:grid-cols-12 gap-6">
+          <!-- Bento 1 (Span 4): Selector de Ficha y Resumen de Grupos Scrum -->
+          <div class="lg:col-span-4 bento-card p-6 space-y-4 flex flex-col justify-between">
+            <div class="space-y-4">
+              <div>
+                <p class="eyebrow-label">GESTIÓN DE FICHA</p>
+                <h3 class="text-lg font-semibold mt-1">Ficha activa y equipos Scrum</h3>
+                <p class="text-xs text-muted mt-0.5">Selecciona la ficha para inspeccionar sus grupos Scrum y aprendices.</p>
+              </div>
+              <div>
+                <label class="apple-label" for="select-ficha-inst">Ficha bajo supervisión</label>
+                <select id="select-ficha-inst" onchange="cambiarFichaInstructor()" class="apple-input"></select>
+              </div>
+              <div class="space-y-2 pt-1">
+                <div class="eyebrow-label !text-[10px]">Equipos conformados en la ficha</div>
+                <div id="lista-grupos-ficha-inst" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bento 2 (Span 4): Carga Masiva Oficial CSV/Excel -->
+          <div class="lg:col-span-4 bento-card p-6 space-y-4 flex flex-col justify-between">
+            <div class="space-y-3">
+              <div>
+                <p class="eyebrow-label">CONFORMACIÓN DE EQUIPOS</p>
+                <h3 class="text-lg font-semibold mt-1">Carga masiva de Grupos Scrum</h3>
+                <p class="text-xs text-muted mt-0.5">
+                  Valida mínimo 2 aprendices por equipo y bloquea automáticamente aprendices duplicados en distintos grupos.
+                </p>
+              </div>
+
+              <form onsubmit="subirArchivoCargaMasiva(event)" class="space-y-3">
+                <div>
+                  <label class="apple-label" for="archivo-carga-masiva">Planilla institucional (`.csv` o `.xlsx`)</label>
+                  <input id="archivo-carga-masiva" type="file" accept=".csv,.xlsx" class="apple-input !py-2 text-xs" />
+                </div>
+                <button type="submit" class="btn-apple-solid w-full">
+                  Importar y validar grupos Scrum
+                </button>
+              </form>
+            </div>
+
+            <div class="border-t divider-hairline pt-4 space-y-3">
+              <button type="button" onclick="descargarPlantillaCSV()" class="btn-apple-secondary w-full text-xs">
+                ↓ Descargar plantilla CSV oficial
+              </button>
+              <div id="resultado-carga-masiva" class="hidden p-3.5 rounded-2xl border text-xs space-y-1"></div>
+            </div>
+          </div>
+
+          <!-- Bento 3 (Span 4): Consultas Escaladas por Aegis IA -->
+          <div class="lg:col-span-4 bento-card p-6 space-y-4 flex flex-col">
+            <div>
+              <p class="eyebrow-label">TUTORÍA ASISTIDA POR IA</p>
+              <h3 class="text-lg font-semibold mt-1">Consultas escaladas por Aegis</h3>
+              <p class="text-xs text-muted mt-0.5">
+                Dudas de diagramas UML, modelo relacional o lógica transferidas automáticamente por el agente.
+              </p>
+            </div>
+            <div id="lista-consultas-escaladas" class="space-y-3 max-h-72 overflow-y-auto flex-1 pr-1"></div>
+          </div>
+        </div>
+
+        <!-- Fila Inferior: Directorio de Aprendices y Regla Inquebrantable No-Delete -->
+        <div class="bento-card p-7 space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-4 border-b divider-hairline pb-4">
+            <div>
+              <p class="eyebrow-label">PROTECCIÓN DE REGISTROS · REGLA INQUEBRANTABLE NO-DELETE</p>
+              <h3 class="text-xl font-semibold mt-1">Directorio de Aprendices de la Ficha</h3>
+              <p class="text-xs text-muted">
+                Por trazabilidad académica SENA, ningún aprendiz se elimina de PostgreSQL: ante deserción o traslado se suspende registrando el motivo obligatorio.
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              <input id="buscador-aprendices-inst" type="text" oninput="cambiarFichaInstructor()"
+                placeholder="Buscar por documento, nombre o grupo..."
+                class="apple-input sm:w-64" />
+              <select id="filtro-estado-aprendiz" onchange="cambiarFichaInstructor()" class="apple-input sm:w-48">
+                <option value="">Todos los estados</option>
+                <option value="ACTIVO">Solo ACTIVOS</option>
+                <option value="PENDIENTE">Solo PENDIENTES</option>
+                <option value="SUSPENDIDO">Solo SUSPENDIDOS</option>
+              </select>
+            </div>
+          </div>
+          <div id="lista-aprendices-ficha" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </div>
+      </div>
+
+      <!-- =====================================================================
+           VISTA 3 (ROL ADMIN): CONSOLA DE COORDINACIÓN ACADÉMICA Y GOBERNANZA
+           ===================================================================== -->
+      <div id="modulo-admin" class="hidden space-y-6">
+        <!-- KPIs Globales del Centro -->
+        <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bento-card p-5 space-y-1">
+            <span class="eyebrow-label !text-[10px]">FICHAS REGISTRADAS</span>
+            <div id="kpi-adm-fichas" class="text-2xl font-bold">0</div>
+            <div class="text-xs text-muted">Fichas activas en PostgreSQL</div>
+          </div>
+          <div class="bento-card p-5 space-y-1">
+            <span class="eyebrow-label !text-[10px]">INSTRUCTORES ACTIVOS</span>
+            <div id="kpi-adm-instructores" class="text-2xl font-bold">0</div>
+            <div class="text-xs text-muted">Docentes habilitados para rotación</div>
+          </div>
+          <div class="bento-card p-5 space-y-1">
+            <span class="eyebrow-label !text-[10px]">APRENDICES ACTIVOS</span>
+            <div id="kpi-adm-aprendices" class="text-2xl font-bold">0</div>
+            <div id="kpi-adm-suspendidos" class="text-xs text-muted">0 suspendidos con trazabilidad</div>
+          </div>
+          <div class="bento-card p-5 space-y-1">
+            <span class="eyebrow-label !text-[10px]">PROYECTOS EN SANDBOX</span>
+            <div id="kpi-adm-proyectos" class="text-2xl font-bold">0</div>
+            <div class="text-xs text-muted">Auditados por Aegis Neural Engine</div>
+          </div>
+        </div>
+
+        <div class="grid lg:grid-cols-12 gap-6">
+          <!-- Columna Izquierda (Span 5): Rotación Trimestral de Instructores -->
+          <div class="lg:col-span-5 bento-card p-7 space-y-5">
+            <div>
+              <p class="eyebrow-label">CONTINUIDAD ACADÉMICA · REGLA DE 1 INSTRUCTOR ACTIVO</p>
+              <h3 class="text-xl font-semibold mt-1">Rotación Trimestral de Instructores</h3>
+              <p class="text-xs text-muted mt-1 leading-relaxed">
+                Asigna el nuevo instructor líder para el trimestre entrante. El sistema cierra automáticamente la asignación anterior conservando todo el historial de calificaciones.
+              </p>
+            </div>
+
+            <form onsubmit="rotarInstructorAdmin(event)" class="space-y-4">
+              <div>
+                <label class="apple-label" for="select-ficha-admin">Seleccionar Ficha</label>
+                <select id="select-ficha-admin" onchange="cargarHistorialInstructoresFicha()" class="apple-input"></select>
+              </div>
+              <div>
+                <label class="apple-label" for="select-nuevo-instructor">Nuevo Instructor Líder</label>
+                <select id="select-nuevo-instructor" class="apple-input"></select>
+              </div>
+              <div>
+                <label class="apple-label" for="input-trimestre">Trimestre Lectivo</label>
+                <input id="input-trimestre" type="text" value="2026-Trimestre-4" required class="apple-input" placeholder="Ej: 2026-Trimestre-4" />
+              </div>
+              <button type="submit" class="btn-apple-solid w-full">
+                Ejecutar rotación trimestral
+              </button>
+            </form>
+
+            <div class="border-t divider-hairline pt-4 space-y-2.5">
+              <div class="eyebrow-label !text-[10px]">Historial de instructores de la ficha seleccionada</div>
+              <div id="lista-historial-instructores" class="space-y-2 max-h-52 overflow-y-auto pr-1"></div>
+            </div>
+          </div>
+
+          <!-- Columna Derecha (Span 7): Registro de Nuevas Fichas y Matriz Institucional -->
+          <div class="lg:col-span-7 space-y-6">
+            <!-- Crear nueva Ficha ADSO -->
+            <div class="bento-card p-7 space-y-4">
+              <div>
+                <p class="eyebrow-label">APERTURA DE COHORTE</p>
+                <h3 class="text-lg font-semibold mt-1">Registrar nueva Ficha SENA</h3>
+                <p class="text-xs text-muted">Crea una nueva ficha y asígnale su primer instructor activo.</p>
+              </div>
+              <form onsubmit="crearNuevaFichaAdmin(event)" class="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="apple-label" for="nueva-ficha-numero">Número de Ficha</label>
+                  <input id="nueva-ficha-numero" type="text" required placeholder="Ej: 2958410" class="apple-input" />
+                </div>
+                <div>
+                  <label class="apple-label" for="nueva-ficha-jornada">Jornada</label>
+                  <select id="nueva-ficha-jornada" class="apple-input">
+                    <option value="DIURNA">Diurna</option>
+                    <option value="NOCTURNA">Nocturna</option>
+                    <option value="MIXTA">Mixta</option>
+                    <option value="FINES_DE_SEMANA">Fines de semana</option>
+                  </select>
+                </div>
+                <div class="sm:col-span-2">
+                  <label class="apple-label" for="nueva-ficha-programa">Programa de Formación</label>
+                  <input id="nueva-ficha-programa" type="text" required value="Análisis y Desarrollo de Software (ADSO)" class="apple-input" />
+                </div>
+                <div>
+                  <label class="apple-label" for="nueva-ficha-instructor">Instructor Líder Inicial</label>
+                  <select id="nueva-ficha-instructor" class="apple-input"></select>
+                </div>
+                <div>
+                  <label class="apple-label" for="nueva-ficha-trimestre">Trimestre Inicial</label>
+                  <input id="nueva-ficha-trimestre" type="text" required value="2026-Trimestre-1" class="apple-input" />
+                </div>
+                <div class="sm:col-span-2 pt-1">
+                  <button type="submit" class="btn-apple-solid">
+                    Crear Ficha en PostgreSQL
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- Matriz Consolidada de Fichas -->
+            <div class="bento-card p-7 space-y-4">
+              <div>
+                <p class="eyebrow-label">SUPERVISIÓN DEL CENTRO DE FORMACIÓN</p>
+                <h3 class="text-lg font-semibold mt-1">Matriz Consolidada de Fichas Activas</h3>
+              </div>
+              <div id="matriz-fichas-admin" class="grid sm:grid-cols-2 gap-4"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =====================================================================
+           VISTA 4 (TRANSVERSAL): VITRINA PÚBLICA DE PROYECTOS + SANDBOX AISLADO
+           ===================================================================== -->
+      <div id="modulo-feed" class="hidden space-y-6">
+        <div class="bento-card p-6 flex flex-wrap items-center justify-between gap-4">
+          <div class="space-y-1">
+            <p class="eyebrow-label">REPOSITORIO VIVO · EJECUCIÓN AISLADA CSP</p>
+            <h2 class="text-2xl font-semibold">Vitrina de Proyectos SENA ADSO</h2>
+            <p class="text-xs text-muted">
+              1 proyecto por Grupo Scrum · Alojamiento exclusivo de la versión más reciente · Historial de revisiones persistente.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+            <input id="buscador-feed" type="text" oninput="cargarFeed()"
+              placeholder="Buscar proyecto, grupo, ficha o tecnología..."
+              class="apple-input sm:w-72" />
+            <button type="button" onclick="cargarFeed()" class="btn-apple-secondary">
+              Actualizar
+            </button>
+          </div>
+        </div>
+
+        <!-- Visor Iframe Sandbox Aislado -->
+        <div id="contenedor-sandbox" class="hidden bento-card overflow-hidden">
+          <div class="px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 border-b divider-hairline" style="background: var(--bg-subcard);">
+            <div class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full animate-pulse" style="background: var(--accent-emerald);"></span>
+              <span id="sandbox-titulo" class="text-xs font-semibold">Ejecución Aislada en Sandbox CSP</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <a id="sandbox-open-tab" href="#" target="_blank" rel="noopener" class="btn-apple-secondary !py-1.5 !px-3 text-xs text-decoration-none">
+                ↗ Abrir en pestaña
+              </a>
+              <button type="button" onclick="cerrarSandbox()" class="btn-apple-secondary !py-1.5 !px-3 text-xs">
+                Cerrar vista previa ✕
+              </button>
+            </div>
+          </div>
+          <iframe id="iframe-sandbox" sandbox="allow-scripts" class="w-full h-[460px] bg-black"></iframe>
+        </div>
+
+        <!-- Grid de Tarjetas de Proyectos -->
+        <div id="lista-proyectos-feed" class="grid md:grid-cols-2 gap-6"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- =========================================================================
+       PIE DE PÁGINA INSTITUCIONAL
+       ========================================================================= -->
+  <footer class="border-t divider-hairline mt-16 py-6 px-6 text-xs text-muted">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-2.5">
+        <span class="w-2 h-2 rounded-full" style="background: var(--accent-emerald);"></span>
+        <span><strong>Vortex ADSO Pro</strong> · Servicio Nacional de Aprendizaje (SENA) · PostgreSQL + Aegis Neural Engine</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <span>Regla Inquebrantable No-Delete Activa</span>
+        <span>·</span>
+        <a href="/" class="hover:underline" style="color: var(--accent-blue);">Presentación 3D</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- =========================================================================
+       MODAL PROFESIONAL ESTILO APPLE GLASS (REEMPLAZA PROMPT/CONFIRM NATIVOS)
+       ========================================================================= -->
+  <div id="apple-modal-overlay" class="fixed inset-0 z-50 hidden items-center justify-center p-4" style="background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);">
+    <div class="w-full max-w-md rounded-3xl p-7 space-y-5 border divider-hairline shadow-2xl" style="background: var(--bg-modal);">
+      <div class="space-y-1.5">
+        <p id="apple-modal-eyebrow" class="eyebrow-label">ACCIÓN INSTITUCIONAL</p>
+        <h3 id="apple-modal-title" class="text-xl font-semibold">Título del diálogo</h3>
+        <p id="apple-modal-desc" class="text-xs text-muted leading-relaxed"></p>
+      </div>
+      <div>
+        <textarea id="apple-modal-input" rows="3" class="apple-input" placeholder="Escribe aquí..."></textarea>
+        <p id="apple-modal-error" class="hidden text-xs mt-1.5" style="color: var(--accent-rose);"></p>
+      </div>
+      <div class="flex items-center justify-end gap-2.5 pt-2">
+        <button type="button" onclick="cerrarModalApple()" class="btn-apple-secondary">
+          Cancelar
+        </button>
+        <button id="apple-modal-confirm-btn" type="button" class="btn-apple-solid">
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = "/api/v1";
+    let usuarioActual = null;
+    let fichasDisponibles = [];
+    let modalCallback = null;
+
+    // ========================================================================
+    // Modal Profesional Estilo Apple Glass
+    // ========================================================================
+    function abrirModalApple({ eyebrow = "REGISTRO ACADÉMICO", title, desc, placeholder = "", minLength = 3, confirmText = "Guardar", onConfirm }) {
+      document.getElementById("apple-modal-eyebrow").textContent = eyebrow;
+      document.getElementById("apple-modal-title").textContent = title;
+      document.getElementById("apple-modal-desc").textContent = desc;
+      const input = document.getElementById("apple-modal-input");
+      const errEl = document.getElementById("apple-modal-error");
+      input.value = "";
+      input.placeholder = placeholder;
+      errEl.classList.add("hidden");
+      document.getElementById("apple-modal-confirm-btn").textContent = confirmText;
+
+      const overlay = document.getElementById("apple-modal-overlay");
+      overlay.classList.remove("hidden");
+      overlay.classList.add("flex");
+      setTimeout(() => input.focus(), 60);
+
+      document.getElementById("apple-modal-confirm-btn").onclick = async () => {
+        const val = input.value.trim();
+        if (val.length < minLength) {
+          errEl.textContent = `Por favor ingresa al menos ${minLength} caracteres.`;
+          errEl.classList.remove("hidden");
+          return;
+        }
+        cerrarModalApple();
+        await onConfirm(val);
+      };
+    }
+
+    function cerrarModalApple() {
+      const overlay = document.getElementById("apple-modal-overlay");
+      overlay.classList.add("hidden");
+      overlay.classList.remove("flex");
+    }
+
+    // ========================================================================
+    // Gestión de Tema: Modo Oscuro OLED vs Modo Blanco Apple
+    // ========================================================================
+    function sincronizarBotonTema() {
+      const current = document.documentElement.getAttribute("data-theme") || "dark";
+      const sunIcon = document.getElementById("icon-theme-sun");
+      const moonIcon = document.getElementById("icon-theme-moon");
+      const label = document.getElementById("label-theme-toggle");
+      if (current === "light") {
+        sunIcon?.classList.add("hidden");
+        moonIcon?.classList.remove("hidden");
+        if (label) label.textContent = "Modo Oscuro";
+      } else {
+        sunIcon?.classList.remove("hidden");
+        moonIcon?.classList.add("hidden");
+        if (label) label.textContent = "Modo Blanco";
+      }
+    }
+
+    function alternarTema() {
+      const actual = document.documentElement.getAttribute("data-theme") || "dark";
+      const nuevo = actual === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", nuevo);
+      localStorage.setItem("vortex_theme", nuevo);
+      sincronizarBotonTema();
+    }
+
+    sincronizarBotonTema();
+
+    function mostrarAlerta(mensaje, tipo = "ok") {
+      const el = document.getElementById("alerta-global");
+      el.className = `mb-6 p-4 rounded-2xl border text-xs font-medium ${
+        tipo === "error"
+          ? "bg-rose-950/90 border-rose-500/50 text-rose-200"
+          : "bg-emerald-950/90 border-emerald-500/50 text-emerald-200"
+      }`;
+      el.innerHTML = mensaje;
+      el.classList.remove("hidden");
+      setTimeout(() => el.classList.add("hidden"), 7000);
+    }
+
+    async function apiFetch(ruta, opciones = {}) {
+      const token = localStorage.getItem("sena_jwt_access");
+      const headers = { ...(opciones.headers || {}) };
+      if (!(opciones.body instanceof FormData) && !headers["Content-Type"]) {
+        headers["Content-Type"] = "application/json";
+      }
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch(`${API}${ruta}`, { ...opciones, headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw { status: res.status, data };
+      return data;
+    }
+
+    function cambiarTabAuth(tab) {
+      document.getElementById("form-login").classList.toggle("hidden", tab !== "login");
+      document.getElementById("form-activar").classList.toggle("hidden", tab !== "activar");
+      document.getElementById("tab-btn-login").className =
+        tab === "login" ? "seg-tab active flex-1" : "seg-tab flex-1";
+      document.getElementById("tab-btn-activar").className =
+        tab === "activar" ? "seg-tab active flex-1" : "seg-tab flex-1";
+    }
+
+    async function iniciarSesion(e) {
+      if (e) e.preventDefault();
+      const documento = document.getElementById("login-documento").value.trim();
+      const password = document.getElementById("login-password").value;
+      try {
+        const res = await apiFetch("/auth/login/", {
+          method: "POST",
+          body: JSON.stringify({ documento, password }),
+        });
+        localStorage.setItem("sena_jwt_access", res.access);
+        usuarioActual = res.usuario;
+        entrarAplicacion();
+      } catch (err) {
+        mostrarAlerta(err.data?.detail || "Credenciales inválidas. Verifica tu número de documento y contraseña.", "error");
+      }
+    }
+
+    async function activarCuenta(e) {
+      e.preventDefault();
+      try {
+        const res = await apiFetch("/auth/activar-cuenta/", {
+          method: "POST",
+          body: JSON.stringify({
+            documento: document.getElementById("act-documento").value.trim(),
+            token_activacion: document.getElementById("act-token").value.trim(),
+            password: document.getElementById("act-password").value,
+            acepto_habeas_data: document.getElementById("act-habeas").checked,
+          }),
+        });
+        mostrarAlerta(res.mensaje, "ok");
+        cambiarTabAuth("login");
+      } catch (err) {
+        mostrarAlerta(err.data?.detalle || JSON.stringify(err.data), "error");
+      }
+    }
+
+    function cerrarSesion() {
+      localStorage.removeItem("sena_jwt_access");
+      usuarioActual = null;
+      datosGrupoActualCache = null;
+      document.getElementById("vista-app").classList.add("hidden");
+      document.getElementById("user-header").classList.add("hidden");
+      document.getElementById("vista-auth").classList.remove("hidden");
+      document.getElementById("navbar-context-label").textContent = "Plataforma Académica · Portafolio Vivo SENA";
+    }
+
+    // ========================================================================
+    // Enrutamiento Inteligente por Rol (APRENDIZ vs INSTRUCTOR vs ADMIN)
+    // ========================================================================
+    async function entrarAplicacion() {
+      document.getElementById("vista-auth").classList.add("hidden");
+      document.getElementById("vista-app").classList.remove("hidden");
+      const header = document.getElementById("user-header");
+      header.classList.remove("hidden");
+      header.classList.add("flex");
+
+      document.getElementById("header-nombre").textContent = usuarioActual.nombre_completo;
+      document.getElementById("header-rol-badge").textContent = usuarioActual.rol;
+      document.getElementById("header-rol-doc").textContent = `Doc: ${usuarioActual.documento}`;
+
+      const esAprendiz = usuarioActual.rol === "APRENDIZ";
+      const esInstructor = usuarioActual.rol === "INSTRUCTOR";
+      const esAdmin = usuarioActual.rol === "ADMIN";
+
+      document.getElementById("nav-agente")?.classList.toggle("hidden", !esAprendiz);
+      document.getElementById("nav-grupo").classList.toggle("hidden", !esAprendiz);
+      document.getElementById("nav-instructor").classList.toggle("hidden", !(esInstructor || esAdmin));
+      document.getElementById("nav-admin").classList.toggle("hidden", !esAdmin);
+
+      const contextLabel = document.getElementById("navbar-context-label");
+      if (esAprendiz) {
+        contextLabel.textContent = "Entorno de Aprendiz · Agente Aegis IA & Proyecto Scrum";
+        mostrarModulo("agente");
+      } else if (esInstructor) {
+        contextLabel.textContent = "Entorno Docente · Supervisión de Ficha y Evaluación";
+        mostrarModulo("instructor");
+      } else if (esAdmin) {
+        contextLabel.textContent = "Coordinación Académica · Gobernanza ADSO";
+        mostrarModulo("admin");
+      }
+    }
+
+    function mostrarModulo(mod) {
+      ["agente", "grupo", "instructor", "admin", "feed"].forEach((m) => {
+        const sec = document.getElementById(`modulo-${m}`);
+        if (sec) sec.classList.toggle("hidden", m !== mod);
+        const btn = document.getElementById(`nav-${m}`);
+        if (btn) btn.classList.toggle("active", m === mod);
+      });
+      if (mod === "feed") cargarFeed();
+      if (mod === "agente") {
+        cargarMiGrupoProyecto();
+        sincronizarHistorialAgente(false);
+        setTimeout(inicializarRobot3DChat, 80);
+      }
+      if (mod === "grupo") {
+        cargarMiGrupoProyecto();
+      }
+      if (mod === "instructor") cargarPanelInstructor();
+      if (mod === "admin") cargarPanelAdmin();
+    }
+
+    // ========================================================================
+    // Sandbox Aislado CSP
+    // ========================================================================
+    function ejecutarSandbox(url, titulo) {
+      mostrarModulo("feed");
+      const cont = document.getElementById("contenedor-sandbox");
+      document.getElementById("sandbox-titulo").textContent = `Sandbox Aislado CSP · ${titulo}`;
+      document.getElementById("iframe-sandbox").src = url;
+      document.getElementById("sandbox-open-tab").href = url;
+      cont.classList.remove("hidden");
+      cont.scrollIntoView({ behavior: "smooth" });
+    }
+
+    function cerrarSandbox() {
+      document.getElementById("iframe-sandbox").src = "about:blank";
+      document.getElementById("contenedor-sandbox").classList.add("hidden");
+    }
+
+    // ========================================================================
+    // VISTA 4: Vitrina Pública de Proyectos (Sandbox)
+    // ========================================================================
+    async function cargarFeed() {
+      try {
+        const q = (document.getElementById("buscador-feed")?.value || "").trim();
+        const urlFeed = q ? `/proyectos/feed/?search=${encodeURIComponent(q)}` : "/proyectos/feed/";
+        const res = await apiFetch(urlFeed);
+        const proyectos = res.results || res;
+        const cont = document.getElementById("lista-proyectos-feed");
+        if (!proyectos.length) {
+          cont.innerHTML = `<div class="col-span-2 p-8 bento-card text-center text-xs text-muted">No se encontraron proyectos con ese criterio en el repositorio.</div>`;
+          return;
+        }
+        const tarjetas = await Promise.all(
+          proyectos.map(async (p) => {
+            const comentarios = await apiFetch(`/revisiones/proyectos/${p.id}/comentarios/`).catch(() => []);
+            const integrantesTxt = (p.integrantes || [])
+              .map((i) => `${i.nombre_completo} (${i.documento})`)
+              .join(" · ");
+            const techs = (p.tecnologias || [])
+              .map((t) => `<span class="apple-pill !text-[11px] !py-0.5 !px-2.5">${t}</span>`)
+              .join(" ");
+
+            const comentariosHtml = comentarios
+              .map(
+                (c) => `
+                <div class="p-3.5 bento-subcard text-xs space-y-1.5">
+                  <div class="flex justify-between text-[11px] font-semibold" style="color: var(--accent-amber);">
+                    <span>Instructor: ${c.instructor_nombre} · Entrega #${c.numero_entrega_revisada}</span>
+                  </div>
+                  <p class="leading-relaxed">${c.comentario_instructor}</p>
+                  ${
+                    c.respuesta_grupo
+                      ? `<div class="pl-3 border-l-2 border-emerald-500 text-emerald-400 text-[11px] mt-1.5">
+                          <strong>Respuesta Equipo (${c.respondido_por_nombre || "Grupo Scrum"} · Entrega #${c.corregido_en_entrega || p.numero_entrega_actual}):</strong> ${c.respuesta_grupo}
+                        </div>`
+                      : usuarioActual?.rol === "APRENDIZ"
+                      ? `<button onclick="responderComentario('${c.id}')" class="text-[11px] font-medium underline mt-1" style="color: var(--accent-blue);">Registrar corrección del equipo →</button>`
+                      : ""
+                  }
+                </div>`
+              )
+              .join("");
+
+            return `
+              <article class="bento-card bento-card-interactive p-7 flex flex-col justify-between gap-5">
+                <div class="space-y-3">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="apple-pill">
+                      <span class="w-1.5 h-1.5 rounded-full" style="background: var(--accent-emerald);"></span>
+                      ${p.nombre_grupo} · Ficha ${p.ficha_numero}
+                    </span>
+                    <span class="text-xs text-muted font-mono">Entrega #${p.numero_entrega_actual} · ${p.estado}</span>
+                  </div>
+                  <h3 class="text-xl font-semibold">${p.titulo}</h3>
+                  <p class="text-xs text-muted leading-relaxed">${p.introduccion}</p>
+                  <div class="flex flex-wrap gap-1.5 pt-1">${techs}</div>
+                  <p class="text-[11px] text-muted pt-1"><strong>Equipo Scrum:</strong> ${integrantesTxt}</p>
+                </div>
+
+                <div class="space-y-4 border-t divider-hairline pt-4">
+                  <div class="flex flex-wrap gap-2.5">
+                    ${
+                      p.url_ejecucion_sandbox
+                        ? `<button onclick="ejecutarSandbox('${p.url_ejecucion_sandbox}', '${p.titulo.replace(/'/g, "")}')"
+                            class="btn-apple-solid !py-2 !px-4 !text-xs">
+                            ▶ Ejecutar en Sandbox
+                          </button>
+                          <a href="${p.url_ejecucion_sandbox}" target="_blank" rel="noopener"
+                            class="btn-apple-secondary !py-2 !px-3.5 !text-xs text-decoration-none">
+                            ↗ Nueva pestaña
+                          </a>`
+                        : `<span class="text-xs font-medium" style="color: var(--accent-amber);">Propuesta aprobada · Pendiente primera entrega ejecutable</span>`
+                    }
+                    ${
+                      usuarioActual?.rol === "INSTRUCTOR" || usuarioActual?.rol === "ADMIN"
+                        ? `<button onclick="comentarProyectoInstructor('${p.id}', '${p.titulo.replace(/'/g, "")}')"
+                            class="btn-apple-secondary !py-2 !px-3.5 !text-xs">
+                            + Evaluar / Dejar observación
+                          </button>`
+                        : ""
+                    }
+                  </div>
+                  <div class="space-y-2">
+                    <div class="eyebrow-label !text-[10px]">Hilo de Evaluación (${comentarios.length})</div>
+                    ${comentariosHtml || `<p class="text-[11px] text-muted">Sin observaciones registradas hasta el momento.</p>`}
+                  </div>
+                </div>
+              </article>
+            `;
+          })
+        );
+        cont.innerHTML = tarjetas.join("");
+      } catch (err) {
+        mostrarAlerta("No se pudo cargar la vitrina de proyectos.", "error");
+      }
+    }
+
+    function comentarProyectoInstructor(proyectoId, tituloProyecto = "Proyecto") {
+      abrirModalApple({
+        eyebrow: "EVALUACIÓN DOCENTE",
+        title: `Observación para ${tituloProyecto}`,
+        desc: "Registra tu retroalimentación técnica o corrección requerida para el Grupo Scrum. Quedará asociada a la versión actual de la entrega.",
+        placeholder: "Ej: Normalizar la tabla de sensores a 3FN y validar tokens vencidos...",
+        minLength: 5,
+        confirmText: "Publicar observación",
+        onConfirm: async (texto) => {
+          try {
+            await apiFetch(`/revisiones/proyectos/${proyectoId}/comentarios/`, {
+              method: "POST",
+              body: JSON.stringify({ comentario_instructor: texto }),
+            });
+            mostrarAlerta("Observación registrada correctamente en PostgreSQL.", "ok");
+            cargarFeed();
+          } catch (err) {
+            mostrarAlerta(err.data?.detalle || "No fue posible registrar la observación.", "error");
+          }
+        },
+      });
+    }
+
+    function responderComentario(comentarioId) {
+      abrirModalApple({
+        eyebrow: "RESPUESTA DEL EQUIPO SCRUM",
+        title: "Confirmar corrección aplicada",
+        desc: "Describe cómo tu Grupo Scrum solucionó la observación del instructor. Tu nombre y documento quedarán registrados en la bitácora.",
+        placeholder: "Ej: Se implementó el validador y se subió en la nueva entrega...",
+        minLength: 5,
+        confirmText: "Enviar respuesta al instructor",
+        onConfirm: async (texto) => {
+          try {
+            await apiFetch(`/revisiones/comentarios/${comentarioId}/responder/`, {
+              method: "POST",
+              body: JSON.stringify({ respuesta_grupo: texto }),
+            });
+            mostrarAlerta("Respuesta del Grupo Scrum registrada exitosamente.", "ok");
+            cargarFeed();
+            if (usuarioActual?.rol === "APRENDIZ") cargarMiGrupoProyecto();
+          } catch (err) {
+            mostrarAlerta(err.data?.detalle || "Solo integrantes activos del Grupo Scrum pueden responder.", "error");
+          }
+        },
+      });
+    }
+
+    // ========================================================================
+    // VISTA 1A & 1B: Espacio de Trabajo del Aprendiz (Claude-Style Aegis IA + Grupo Scrum)
+    // ========================================================================
+    let datosGrupoActualCache = null;
+
+    function obtenerClaveStorageChat() {
+      const grupoId = datosGrupoActualCache?.grupo_scrum?.id || usuarioActual?.documento || "default";
+      return `vortex_aegis_tutor_v7_${grupoId}`;
+    }
+
+    function leerHistorialChatLocal() {
+      try {
+        const raw = localStorage.getItem(obtenerClaveStorageChat());
+        return raw ? JSON.parse(raw) : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function guardarHistorialChatLocal(mensajes) {
+      try {
+        localStorage.setItem(obtenerClaveStorageChat(), JSON.stringify(mensajes.slice(-60)));
+      } catch {}
+    }
+
+    function escaparHtml(str = "") {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function formatearRespuestaMentor(texto = "") {
+      return escaparHtml(texto)
+        .replace(
+          /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+          '<a href="$2" target="_blank" rel="noopener noreferrer" class="underline font-medium" style="color: var(--accent-blue);">$1 ↗</a>'
+        )
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>")
+        .replace(/\n/g, "<br />");
+    }
+
+    function inicialesNombre(nombre = "Aprendiz") {
+      return nombre
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((p) => p[0].toUpperCase())
+        .join("");
+    }
+
+    async function sincronizarHistorialAgente() {
+      if (usuarioActual?.rol !== "APRENDIZ") return;
+      try {
+        if (!datosGrupoActualCache) {
+          datosGrupoActualCache = await apiFetch("/proyectos/mi-grupo/").catch(() => null);
+        }
+        renderizarChatClaude(leerHistorialChatLocal());
+      } catch (err) {
+        renderizarChatClaude(leerHistorialChatLocal());
+      }
+    }
+
+    function renderizarChatClaude(historial = []) {
+      const stream = document.getElementById("claude-chat-stream");
+      if (!stream) return;
+
+      const nombreUsuario = usuarioActual?.nombre_completo || "Aprendiz";
+
+      // Directriz 1: Saludo Inicial Dinámico y Profesional mencionando el nombre del usuario autenticado
+      const bienvenidaHtml = `
+        <div class="claude-msg-row">
+          <div class="claude-avatar claude-avatar-ai">✦</div>
+          <div class="claude-bubble claude-bubble-ai space-y-1.5">
+            <div class="flex items-center justify-between gap-3 text-[11px] text-muted">
+              <span class="font-semibold" style="color: var(--text-primary);">Aegis</span>
+              <span class="font-mono">Tutor SENA</span>
+            </div>
+            <p class="text-xs leading-relaxed">
+              Hola, <strong>${escaparHtml(nombreUsuario)}</strong>. ¿Ya tienes en mente alguna idea de proyecto para revisarla juntos, o prefieres que empecemos desde cero buscando una idea sencilla?
+            </p>
+          </div>
+        </div>
+      `;
+
+      const itemsHtml = historial
+        .map((item) => {
+          const hora = item.fecha
+            ? new Date(item.fecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
+            : "Ahora";
+          const iniciales = inicialesNombre(item.autor_nombre || nombreUsuario);
+
+          // 1. Mensaje del aprendiz (limpio y directo)
+          const userBubble = `
+            <div class="claude-msg-row is-user">
+              <div class="claude-avatar claude-avatar-user" title="${escaparHtml(item.autor_nombre)}">${iniciales}</div>
+              <div class="claude-bubble claude-bubble-user space-y-1">
+                <div class="flex items-center justify-between gap-3 text-[11px] text-muted">
+                  <span class="font-semibold" style="color: var(--text-primary);">${escaparHtml(item.autor_nombre || nombreUsuario)}</span>
+                  <span class="font-mono">${hora}</span>
+                </div>
+                <p class="text-xs leading-relaxed whitespace-pre-line">${escaparHtml(item.mensaje_usuario)}</p>
+              </div>
+            </div>
+          `;
+
+          // 2. Bloque de razonamiento interno de Aegis ([PROTOCOLO DE RAZONAMIENTO OBLIGATORIO])
+          const raz = item.razonamiento;
+          const razonamientoHtml =
+            raz && (raz.estado_conversacion || raz.intencion_aprendiz || raz.estrategia_tutoria)
+              ? `
+                <details class="rounded-lg border px-2.5 py-2 text-[11px] leading-relaxed" style="border-color: var(--border-subtle); background: rgba(59, 130, 246, 0.04);">
+                  <summary class="cursor-pointer select-none font-mono text-[10px] uppercase tracking-wider text-muted flex items-center justify-between">
+                    <span>⚡ Protocolo de Razonamiento Aegis</span>
+                    <span class="opacity-70">Ver análisis</span>
+                  </summary>
+                  <div class="mt-2 pt-2 border-t space-y-1 text-[11px]" style="border-color: var(--border-subtle);">
+                    <div><strong class="font-mono text-[10px]" style="color: var(--accent-blue);">[ESTADO DE LA CONVERSACIÓN]:</strong> <span class="text-muted">${escaparHtml(raz.estado_conversacion || "")}</span></div>
+                    <div><strong class="font-mono text-[10px]" style="color: var(--accent-blue);">[INTENCIÓN DEL APRENDIZ]:</strong> <span class="text-muted">${escaparHtml(raz.intencion_aprendiz || "")}</span></div>
+                    <div><strong class="font-mono text-[10px]" style="color: var(--accent-blue);">[ESTRATEGIA DE TUTORÍA]:</strong> <span class="text-muted">${escaparHtml(raz.estrategia_tutoria || "")}</span></div>
+                  </div>
+                </details>
+              `
+              : "";
+
+          // 3. Respuesta de Aegis (conversación fluida y humana, 1 sola pregunta a la vez)
+          const aiBubble = `
+            <div class="claude-msg-row">
+              <div class="claude-avatar claude-avatar-ai">✦</div>
+              <div class="claude-bubble claude-bubble-ai space-y-2">
+                <div class="flex items-center justify-between gap-3 text-[11px] text-muted">
+                  <span class="font-semibold" style="color: var(--text-primary);">Aegis</span>
+                  <span class="font-mono">${hora}</span>
+                </div>
+                ${razonamientoHtml}
+                <div class="text-xs leading-relaxed">${formatearRespuestaMentor(item.respuesta_agente)}</div>
+              </div>
+            </div>
+          `;
+
+          return userBubble + aiBubble;
+        })
+        .join("");
+
+      stream.innerHTML = bienvenidaHtml + itemsHtml;
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    function manejarEnterChat(e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        consultarAgenteIA(e);
+      }
+    }
+
+    function limpiarHistorialChatLocal() {
+      localStorage.removeItem(obtenerClaveStorageChat());
+      sincronizarHistorialAgente();
+    }
+
+    async function consultarAgenteIA(e) {
+      if (e) e.preventDefault();
+      const inputMensaje = document.getElementById("ia-mensaje");
+      const btnEnviar = document.getElementById("btn-enviar-chat");
+      const stream = document.getElementById("claude-chat-stream");
+
+      const mensaje = (inputMensaje?.value || "").trim();
+      if (!mensaje) return;
+
+      inputMensaje.value = "";
+      if (btnEnviar) {
+        btnEnviar.disabled = true;
+        btnEnviar.style.opacity = "0.6";
+      }
+
+      const historialPrevio = leerHistorialChatLocal();
+      const nombreUsuario = usuarioActual?.nombre_completo || "Aprendiz";
+      const iniciales = inicialesNombre(nombreUsuario);
+      const horaActual = new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+
+      // 1. Pintar de inmediato el mensaje del aprendiz y una burbuja de "Aegis está razonando..."
+      if (stream) {
+        stream.insertAdjacentHTML(
+          "beforeend",
+          `
+          <div class="claude-msg-row is-user">
+            <div class="claude-avatar claude-avatar-user">${iniciales}</div>
+            <div class="claude-bubble claude-bubble-user space-y-1">
+              <div class="flex items-center justify-between gap-3 text-[11px] text-muted">
+                <span class="font-semibold" style="color: var(--text-primary);">${escaparHtml(nombreUsuario)}</span>
+                <span class="font-mono">${horaActual}</span>
+              </div>
+              <p class="text-xs leading-relaxed whitespace-pre-line">${escaparHtml(mensaje)}</p>
+            </div>
+          </div>
+          <div id="aegis-thinking-row" class="claude-msg-row">
+            <div class="claude-avatar claude-avatar-ai animate-pulse">✦</div>
+            <div class="claude-bubble claude-bubble-ai space-y-1.5">
+              <div class="flex items-center gap-2 text-[11px] text-muted">
+                <span class="w-2 h-2 rounded-full animate-ping" style="background: var(--accent-blue);"></span>
+                <span>Aegis está pensando cómo guiarte paso a paso...</span>
+              </div>
+            </div>
+          </div>
+          `
+        );
+        stream.scrollTop = stream.scrollHeight;
+      }
+
+      try {
+        // Pausa breve natural para simular el razonamiento humano antes de responder
+        const [res] = await Promise.all([
+          apiFetch("/asistente/consultar/", {
+            method: "POST",
+            body: JSON.stringify({
+              titulo_propuesto: "",
+              mensaje,
+              historial: historialPrevio.slice(-6),
+            }),
+          }),
+          new Promise((resolve) => setTimeout(resolve, 950)),
+        ]);
+
+        if (res.es_idea_unica === false) {
+          actualizarEstadoRobotChat("alerta", "Similitud detectada en PostgreSQL");
+        } else if (res.accion_agente === "LIMITE_PEDAGOGICO_IA") {
+          actualizarEstadoRobotChat("escalado", "Tutoría activa · Sin facilitismo");
+        } else {
+          actualizarEstadoRobotChat("aprobado", "Aegis en línea · Tutoría activa");
+        }
+
+        const nuevoItem = {
+          id: `mentor_${Date.now()}`,
+          fecha: new Date().toISOString(),
+          autor_nombre: nombreUsuario,
+          mensaje_usuario: mensaje,
+          accion_agente: res.accion_agente,
+          es_idea_unica: res.es_idea_unica,
+          razonamiento: res.razonamiento || null,
+          respuesta_agente: res.respuesta,
+        };
+
+        historialPrevio.push(nuevoItem);
+        guardarHistorialChatLocal(historialPrevio);
+        renderizarChatClaude(historialPrevio);
+      } catch (err) {
+        document.getElementById("aegis-thinking-row")?.remove();
+        mostrarAlerta(err.data?.detail || "No se pudo procesar la consulta con Aegis.", "error");
+      } finally {
+        if (btnEnviar) {
+          btnEnviar.disabled = false;
+          btnEnviar.style.opacity = "1";
+        }
+        inputMensaje?.focus();
+      }
+    }
+
+    async function cargarMiGrupoProyecto() {
+      if (usuarioActual?.rol !== "APRENDIZ") return;
+      try {
+        const res = await apiFetch("/proyectos/mi-grupo/");
+        datosGrupoActualCache = res;
+        const g = res.grupo_scrum;
+        // Soportar tanto g.integrantes (devuelto por MiGrupoProyectoView) como g.miembros
+        const listaIntegrantes = g.integrantes || g.miembros || [];
+
+        document.getElementById("info-mi-grupo").textContent = `${g.nombre_grupo} · Ficha ${g.ficha_numero}`;
+        document.getElementById("kpi-apr-grupo").textContent = g.nombre_grupo;
+        document.getElementById("kpi-apr-ficha").textContent = `Ficha ${g.ficha_numero} · ${listaIntegrantes.length} integrantes activos`;
+
+        // Poblar también la tarjeta de contexto en la barra lateral izquierda de Aegis IA
+        const sideFicha = document.getElementById("agente-side-ficha");
+        const sideGrupo = document.getElementById("agente-side-grupo");
+        const sideProyecto = document.getElementById("agente-side-proyecto");
+        const sideMiembros = document.getElementById("agente-side-miembros");
+        if (sideFicha) sideFicha.textContent = `Ficha ${g.ficha_numero} · ${listaIntegrantes.length} integrantes`;
+        if (sideGrupo) sideGrupo.textContent = g.nombre_grupo;
+        if (sideProyecto) {
+          sideProyecto.textContent = res.proyecto
+            ? `Proyecto activo: ${res.proyecto.titulo} (Entrega #${res.proyecto.numero_entrega_actual})`
+            : "Aún sin proyecto registrado por el equipo";
+        }
+        if (sideMiembros) {
+          sideMiembros.innerHTML = listaIntegrantes
+            .map(
+              (m) => `
+              <span class="apple-pill !text-[10.5px] !py-0.5 !px-2.5">
+                <span class="w-1.5 h-1.5 rounded-full" style="background: var(--accent-emerald);"></span>
+                ${escaparHtml(m.nombre_completo)}
+              </span>`
+            )
+            .join("");
+        }
+
+        // Renderizar integrantes del equipo Scrum en la vista de Proyecto
+        const chipsCont = document.getElementById("chips-integrantes-grupo");
+        chipsCont.innerHTML = listaIntegrantes
+          .map(
+            (m) => `
+            <span class="apple-pill">
+              <span class="w-1.5 h-1.5 rounded-full" style="background: var(--accent-blue);"></span>
+              ${escaparHtml(m.nombre_completo)} <span class="font-mono opacity-75">(${escaparHtml(m.documento)})</span>
+            </span>`
+          )
+          .join("");
+
+        const btnSandbox = document.getElementById("btn-ver-mi-sandbox");
+        if (res.proyecto) {
+          document.getElementById("proy-titulo").value = res.proyecto.titulo;
+          document.getElementById("proy-introduccion").value = res.proyecto.introduccion;
+          document.getElementById("proy-tecnologias").value = (res.proyecto.tecnologias || []).join(", ");
+          document.getElementById("kpi-apr-estado").textContent = res.proyecto.estado;
+          document.getElementById("kpi-apr-entrega").textContent = `Entrega activa #${res.proyecto.numero_entrega_actual}`;
+
+          if (res.proyecto.url_ejecucion_sandbox) {
+            btnSandbox.classList.remove("hidden");
+            btnSandbox.onclick = () => ejecutarSandbox(res.proyecto.url_ejecucion_sandbox, res.proyecto.titulo);
+          } else {
+            btnSandbox.classList.add("hidden");
+          }
+
+          // Cargar observaciones del instructor sobre el proyecto del grupo
+          const comentarios = await apiFetch(`/revisiones/proyectos/${res.proyecto.id}/comentarios/`).catch(() => []);
+          const pendientes = comentarios.filter((c) => !c.respuesta_grupo).length;
+          document.getElementById("kpi-apr-revisiones").textContent = `${comentarios.length} total`;
+          document.getElementById("kpi-apr-revisiones-sub").textContent =
+            pendientes > 0 ? `${pendientes} pendientes de respuesta` : "Todas respondidas al día";
+
+          document.getElementById("lista-comentarios-mi-grupo").innerHTML = comentarios.length
+            ? comentarios
+                .map(
+                  (c) => `
+                  <div class="p-4 bento-subcard text-xs space-y-2">
+                    <div class="flex items-center justify-between">
+                      <span class="font-semibold" style="color: var(--accent-amber);">Instructor: ${c.instructor_nombre}</span>
+                      <span class="apple-pill !text-[10px]">Entrega #${c.numero_entrega_revisada}</span>
+                    </div>
+                    <p class="leading-relaxed">${c.comentario_instructor}</p>
+                    ${
+                      c.respuesta_grupo
+                        ? `<div class="pl-3 border-l-2 border-emerald-500 text-emerald-400 text-[11px]">
+                            <strong>Respuesta registrada (${c.respondido_por_nombre || "Equipo"}):</strong> ${c.respuesta_grupo}
+                          </div>`
+                        : `<button type="button" onclick="responderComentario('${c.id}')" class="btn-apple-secondary !py-1.5 !px-3 !text-[11px]">
+                            Responder indicando corrección
+                          </button>`
+                    }
+                  </div>`
+                )
+                .join("")
+            : `<p class="text-xs text-muted">El instructor aún no ha registrado observaciones sobre tu proyecto.</p>`;
+        } else {
+          document.getElementById("proy-titulo").value = "";
+          document.getElementById("proy-introduccion").value = "";
+          document.getElementById("proy-tecnologias").value = "";
+          document.getElementById("kpi-apr-estado").textContent = "SIN PROYECTO";
+          document.getElementById("kpi-apr-entrega").textContent = "Registra la propuesta del equipo";
+          document.getElementById("kpi-apr-revisiones").textContent = "0";
+          document.getElementById("lista-comentarios-mi-grupo").innerHTML = `<p class="text-xs text-muted">Registra primero la ficha técnica del proyecto.</p>`;
+          btnSandbox.classList.add("hidden");
+        }
+
+        const bitacora = res.historial || [];
+        document.getElementById("kpi-apr-bitacora").textContent = `${bitacora.length} registros`;
+        document.getElementById("lista-bitacora").innerHTML = bitacora.length
+          ? bitacora
+              .map(
+                (h) => `
+              <div class="p-3.5 bento-subcard text-xs flex justify-between items-start gap-3">
+                <div class="space-y-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-semibold">${h.aprendiz_nombre} (Doc: ${h.aprendiz_documento})</span>
+                    <span class="apple-pill !text-[10px] !py-0.5 !px-2 font-mono">${h.accion} · Entrega #${h.numero_entrega}</span>
+                  </div>
+                  <p class="text-muted">${h.descripcion_cambio}</p>
+                </div>
+                <span class="text-[11px] text-muted whitespace-nowrap">${new Date(h.fecha_hora).toLocaleString("es-CO")}</span>
+              </div>`
+              )
+              .join("")
+          : `<p class="text-xs text-muted">Sin acciones registradas todavía.</p>`;
+      } catch (err) {
+        mostrarAlerta(err.data?.detalle || "No se pudo cargar la información del Grupo Scrum.", "error");
+      }
+    }
+
+    async function guardarIdeaProyecto(e) {
+      e.preventDefault();
+      const titulo = document.getElementById("proy-titulo").value.trim();
+      const introduccion = document.getElementById("proy-introduccion").value.trim();
+      const tecnologias = document
+        .getElementById("proy-tecnologias")
+        .value.split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      try {
+        await apiFetch("/proyectos/mi-grupo/", {
+          method: "POST",
+          body: JSON.stringify({ titulo, introduccion, tecnologias, visibilidad: "PUBLICO" }),
+        });
+        mostrarAlerta("Ficha técnica guardada, vectorizada por Aegis y firmada en la bitácora.", "ok");
+        cargarMiGrupoProyecto();
+      } catch (err) {
+        mostrarAlerta(err.data?.detalle || JSON.stringify(err.data), "error");
+      }
+    }
+
+    async function subirReemplazarCodigo(e) {
+      e.preventDefault();
+      const formData = new FormData();
+      const zipInput = document.getElementById("entrega-zip");
+      if (zipInput.files[0]) {
+        formData.append("archivo_zip", zipInput.files[0]);
+      }
+      formData.append("descripcion_cambio", document.getElementById("entrega-nota").value.trim());
+      formData.append("punto_entrada", "index.html");
+      const htmlCustom = document.getElementById("entrega-html").value.trim();
+      if (htmlCustom) {
+        formData.append("codigo_html", htmlCustom);
+      }
+
+      try {
+        const res = await apiFetch("/proyectos/mi-grupo/subir-codigo/", {
+          method: "POST",
+          body: formData,
+        });
+        mostrarAlerta(res.mensaje, "ok");
+        document.getElementById("entrega-nota").value = "";
+        cargarMiGrupoProyecto();
+      } catch (err) {
+        mostrarAlerta(err.data?.detalle || "Error al desplegar la entrega en el Sandbox.", "error");
+      }
+    }
+
+    function retirarProyectoGrupo() {
+      abrirModalApple({
+        eyebrow: "RETIRO FORMAL DE PROPUESTA",
+        title: "Retirar proyecto del Grupo Scrum",
+        desc: "Indica el motivo técnico o académico por el cual el equipo retira el proyecto actual. Esta acción quedará registrada en la bitácora inmutable.",
+        placeholder: "Ej: Cambio de alcance acordado con el instructor de la ficha...",
+        minLength: 8,
+        confirmText: "Confirmar retiro",
+        onConfirm: async (motivo) => {
+          try {
+            const res = await apiFetch("/proyectos/mi-grupo/", {
+              method: "DELETE",
+              body: JSON.stringify({ motivo }),
+            });
+            mostrarAlerta(res.mensaje, "ok");
+            cargarMiGrupoProyecto();
+          } catch (err) {
+            mostrarAlerta(err.data?.detalle || "No se pudo retirar el proyecto.", "error");
+          }
+        },
+      });
+    }
+
+    // ========================================================================
+    // VISTA 2: Panel Docente de Ficha (INSTRUCTOR)
+    // ========================================================================
+    async function cargarPanelInstructor() {
+      try {
+        const [resFichas, consultas] = await Promise.all([
+          apiFetch("/fichas/"),
+          apiFetch("/revisiones/consultas-escaladas/"),
+        ]);
+        fichasDisponibles = (resFichas.results || resFichas || []).sort(
+          (a, b) => (b.total_aprendices_activos || 0) - (a.total_aprendices_activos || 0) || String(a.numero).localeCompare(String(b.numero))
+        );
+        const selFicha = document.getElementById("select-ficha-inst");
+        const prevFichaId = selFicha.value;
+        selFicha.innerHTML = fichasDisponibles
+          .map(
+            (f) =>
+              `<option value="${f.id}">Ficha ${f.numero} · ${f.jornada} (${
+                f.total_aprendices_activos || 0
+              } activos · ${f.total_grupos_scrum || 0} grupos Scrum)</option>`
+          )
+          .join("");
+        if (prevFichaId && fichasDisponibles.some((f) => String(f.id) === String(prevFichaId))) {
+          selFicha.value = prevFichaId;
+        }
+
+        const listaConsultas = consultas.results || consultas;
+        const pendientes = listaConsultas.filter((c) => c.estado !== "RESUELTA").length;
+        document.getElementById("kpi-inst-escaladas").textContent = `${pendientes} pendientes`;
+
+        document.getElementById("lista-consultas-escaladas").innerHTML = listaConsultas.length
+          ? listaConsultas
+              .map(
+                (c) => `
+              <div class="p-3.5 bento-subcard text-xs space-y-2">
+                <div class="flex justify-between items-center gap-2">
+                  <span class="font-semibold">${c.proyecto_titulo}</span>
+                  <span class="apple-pill !text-[10px] !py-0.5 !px-2">${c.estado}</span>
+                </div>
+                <p class="text-muted"><strong>${c.aprendiz_nombre}:</strong> "${c.mensaje_original_aprendiz}"</p>
+                ${
+                  c.respuesta_instructor
+                    ? `<p class="text-emerald-400 text-[11px]"><strong>Orientación enviada:</strong> ${c.respuesta_instructor}</p>`
+                    : `<button onclick="responderConsultaEscalada('${c.id}', '${c.aprendiz_nombre.replace(/'/g, "")}')" class="btn-apple-secondary !py-1.5 !px-3 !text-[11px]">Responder consulta</button>`
+                }
+              </div>`
+              )
+              .join("")
+          : `<p class="text-xs text-muted">No hay consultas escaladas pendientes.</p>`;
+
+        if (fichasDisponibles.length) {
+          await cambiarFichaInstructor();
+        }
+      } catch (err) {
+        mostrarAlerta("Error cargando datos del panel docente.", "error");
+      }
+    }
+
+    async function cambiarFichaInstructor() {
+      const fichaId = document.getElementById("select-ficha-inst").value;
+      if (!fichaId) return;
+
+      const fichaObj = fichasDisponibles.find((f) => String(f.id) === String(fichaId));
+      if (fichaObj) {
+        document.getElementById("kpi-inst-ficha").textContent = `Ficha ${fichaObj.numero}`;
+        document.getElementById("kpi-inst-programa").textContent = `${fichaObj.jornada} · ${fichaObj.trimestre_actual || "Trimestre activo"}`;
+        document.getElementById("kpi-inst-activos").textContent = `${fichaObj.total_aprendices_activos} activos`;
+        document.getElementById("kpi-inst-suspendidos").textContent = `${fichaObj.total_aprendices_suspendidos} suspendidos (No-Delete)`;
+        document.getElementById("kpi-inst-grupos").textContent = `${fichaObj.total_grupos_scrum} grupos Scrum`;
+        document.getElementById("kpi-inst-proyectos").textContent = `${fichaObj.total_proyectos} proyectos activos`;
+      }
+
+      // Cargar grupos Scrum de la ficha
+      const gruposRes = await apiFetch(`/fichas/${fichaId}/grupos-scrum/`).catch(() => []);
+      const grupos = gruposRes.results || gruposRes;
+      document.getElementById("lista-grupos-ficha-inst").innerHTML = grupos.length
+        ? grupos
+            .map(
+              (g) => `
+              <div class="p-3 bento-subcard text-xs flex items-center justify-between gap-2">
+                <div>
+                  <div class="font-semibold">${g.nombre_grupo}</div>
+                  <div class="text-[11px] text-muted">${g.proyecto_titulo || "Sin propuesta aún"} · ${g.cantidad_aprendices_activos} integrantes</div>
+                </div>
+                <span class="apple-pill !text-[10px]">${g.proyecto_estado || "PENDIENTE"}</span>
+              </div>`
+            )
+            .join("")
+        : `<p class="text-xs text-muted">Sin grupos Scrum registrados en esta ficha.</p>`;
+
+      // Cargar aprendices de la ficha
+      const search = (document.getElementById("buscador-aprendices-inst")?.value || "").trim();
+      const estado = (document.getElementById("filtro-estado-aprendiz")?.value || "").trim();
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (estado) params.set("estado_cuenta", estado);
+      const qs = params.toString() ? `?${params.toString()}` : "";
+      const aprendices = await apiFetch(`/fichas/${fichaId}/aprendices/${qs}`);
+
+      document.getElementById("lista-aprendices-ficha").innerHTML = aprendices
+        .map(
+          (a) => `
+          <div class="p-4 bento-subcard text-xs flex flex-col justify-between gap-3">
+            <div>
+              <div class="flex justify-between items-center gap-2">
+                <span class="font-semibold text-sm">${a.nombre_completo}</span>
+                <span class="apple-pill !text-[10px] !py-0.5 !px-2.5">${a.estado_cuenta}</span>
+              </div>
+              <div class="text-muted mt-1 font-mono text-[11px]">Doc: ${a.documento} · ${a.grupo_scrum?.nombre_grupo || "Sin grupo"}</div>
+              <div class="text-muted text-[11px] truncate">${a.correo || ""}</div>
+              ${
+                a.motivo_suspension
+                  ? `<div class="mt-2 p-2.5 rounded-xl bg-rose-950/60 border border-rose-500/30 text-rose-200 text-[11px]">
+                      <strong>Motivo suspensión:</strong> ${a.motivo_suspension}
+                    </div>`
+                  : ""
+              }
+            </div>
+            <div class="pt-1">
+              ${
+                a.estado_cuenta !== "SUSPENDIDO"
+                  ? `<button onclick="suspenderAprendiz('${a.id}', '${a.nombre_completo.replace(/'/g, "")}')"
+                      class="btn-apple-secondary w-full !py-1.5 !text-[11px]">
+                      Suspender registro (Regla No-Delete)
+                    </button>`
+                  : `<button onclick="reactivarAprendiz('${a.id}')"
+                      class="btn-apple-solid w-full !py-1.5 !text-[11px]">
+                      Reactivar aprendiz
+                    </button>`
+              }
+            </div>
+          </div>`
+        )
+        .join("");
+    }
+
+    function suspenderAprendiz(id, nombre) {
+      abrirModalApple({
+        eyebrow: "REGLA SENA INQUEBRANTABLE · NO-DELETE",
+        title: `Suspender a ${nombre}`,
+        desc: "Los aprendices jamás se eliminan de la base de datos. Ingresa la causal académica o administrativa de suspensión (mínimo 10 caracteres):",
+        placeholder: "Ej: Aplazamiento de trimestre radicado en coordinación académica...",
+        minLength: 10,
+        confirmText: "Confirmar suspensión",
+        onConfirm: async (motivo) => {
+          try {
+            const res = await apiFetch(`/auth/aprendices/${id}/suspender/`, {
+              method: "POST",
+              body: JSON.stringify({ motivo_suspension: motivo }),
+            });
+            mostrarAlerta(res.mensaje, "ok");
+            cargarPanelInstructor();
+          } catch (err) {
+            mostrarAlerta(JSON.stringify(err.data), "error");
+          }
+        },
+      });
+    }
+
+    async function reactivarAprendiz(id) {
+      try {
+        const res = await apiFetch(`/auth/aprendices/${id}/reactivar/`, { method: "POST" });
+        mostrarAlerta(res.mensaje, "ok");
+        cargarPanelInstructor();
+      } catch (err) {
+        mostrarAlerta("Error al reactivar aprendiz.", "error");
+      }
+    }
+
+    async function subirArchivoCargaMasiva(e) {
+      e.preventDefault();
+      const fichaId = document.getElementById("select-ficha-inst").value;
+      const fileInput = document.getElementById("archivo-carga-masiva");
+      if (!fileInput.files[0]) {
+        mostrarAlerta("Selecciona un archivo .csv o .xlsx para procesar.", "error");
+        return;
+      }
+      const fd = new FormData();
+      fd.append("archivo", fileInput.files[0]);
+      try {
+        const res = await apiFetch(`/fichas/${fichaId}/carga-masiva/`, {
+          method: "POST",
+          body: fd,
+        });
+        mostrarAlerta(res.mensaje, "ok");
+        document.getElementById("resultado-carga-masiva").classList.add("hidden");
+        cargarPanelInstructor();
+      } catch (err) {
+        mostrarResultadoAlertasCarga(err.data);
+      }
+    }
+
+    function descargarPlantillaCSV() {
+      const csvContent =
+        "nombre_completo,documento,correo,grupo_scrum\n" +
+        "Juan Sebastián Ospina,1022334455,jospina@soy.sena.edu.co,Grupo Scrum 1\n" +
+        "María Fernanda López,1022334466,mflopez@soy.sena.edu.co,Grupo Scrum 1\n" +
+        "Andrés Felipe Mora,1022334477,afmora@soy.sena.edu.co,Grupo Scrum 2\n" +
+        "Natalia Gómez Ruiz,1022334488,ngomez@soy.sena.edu.co,Grupo Scrum 2\n";
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "plantilla_grupos_scrum_sena.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function mostrarResultadoAlertasCarga(data) {
+      const box = document.getElementById("resultado-carga-masiva");
+      box.classList.remove("hidden");
+      box.className = "p-3.5 rounded-2xl border bg-rose-950/90 border-rose-500/50 text-rose-200 text-xs space-y-1.5";
+      const lista = (data?.alertas || [])
+        .map((a) => `<li>⚠️ <strong>${a.tipo}:</strong> ${a.mensaje}</li>`)
+        .join("");
+      box.innerHTML = `<div class="font-bold text-rose-300">${data?.mensaje || "Inconsistencias detectadas en la planilla"}</div><ul class="space-y-1">${lista}</ul>`;
+    }
+
+    function responderConsultaEscalada(consultaId, nombreAprendiz = "Aprendiz") {
+      abrirModalApple({
+        eyebrow: "RELEVO HUMANO-IA · TUTORÍA DOCENTE",
+        title: `Orientación para ${nombreAprendiz}`,
+        desc: "Escribe tu directriz de ingeniería o corrección sobre el diagrama UML / arquitectura consultada:",
+        placeholder: "Ej: Utilicen una relación muchos a muchos con tabla intermedia firmada...",
+        minLength: 5,
+        confirmText: "Enviar respuesta técnica",
+        onConfirm: async (respuesta_instructor) => {
+          try {
+            await apiFetch(`/revisiones/consultas-escaladas/${consultaId}/responder/`, {
+              method: "POST",
+              body: JSON.stringify({ respuesta_instructor }),
+            });
+            mostrarAlerta("Consulta escalada resuelta y notificada al Grupo Scrum.", "ok");
+            cargarPanelInstructor();
+          } catch (err) {
+            mostrarAlerta("Error al responder la consulta.", "error");
+          }
+        },
+      });
+    }
+
+    // ========================================================================
+    // VISTA 3: Consola de Coordinación Académica (ADMIN)
+    // ========================================================================
+    async function cargarPanelAdmin() {
+      try {
+        const [resFichas, instructores] = await Promise.all([
+          apiFetch("/fichas/"),
+          apiFetch("/fichas/instructores/"),
+        ]);
+        fichasDisponibles = resFichas.results || resFichas;
+
+        const totalActivos = fichasDisponibles.reduce((acc, f) => acc + (f.total_aprendices_activos || 0), 0);
+        const totalSusp = fichasDisponibles.reduce((acc, f) => acc + (f.total_aprendices_suspendidos || 0), 0);
+        const totalProy = fichasDisponibles.reduce((acc, f) => acc + (f.total_proyectos || 0), 0);
+
+        document.getElementById("kpi-adm-fichas").textContent = fichasDisponibles.length;
+        document.getElementById("kpi-adm-instructores").textContent = instructores.length;
+        document.getElementById("kpi-adm-aprendices").textContent = totalActivos;
+        document.getElementById("kpi-adm-suspendidos").textContent = `${totalSusp} suspendidos (No-Delete)`;
+        document.getElementById("kpi-adm-proyectos").textContent = totalProy;
+
+        const optsFichas = fichasDisponibles
+          .map(
+            (f) =>
+              `<option value="${f.id}">Ficha ${f.numero} · ${f.programa} (Actual: ${
+                f.instructor_activo?.nombre_completo || "Sin asignar"
+              })</option>`
+          )
+          .join("");
+        document.getElementById("select-ficha-admin").innerHTML = optsFichas;
+
+        const optsInst = instructores
+          .map((i) => `<option value="${i.id}">${i.nombre_completo} (Doc: ${i.documento})</option>`)
+          .join("");
+        document.getElementById("select-nuevo-instructor").innerHTML = optsInst;
+        document.getElementById("nueva-ficha-instructor").innerHTML = optsInst;
+
+        document.getElementById("matriz-fichas-admin").innerHTML = fichasDisponibles
+          .map(
+            (f) => `
+            <div class="p-5 bento-subcard space-y-2.5 text-xs">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-bold">Ficha ${f.numero}</span>
+                <span class="apple-pill !text-[10px]">${f.jornada}</span>
+              </div>
+              <p class="text-muted truncate">${f.programa}</p>
+              <div class="pt-1 border-t divider-hairline space-y-1">
+                <div><strong>Instructor Líder:</strong> ${f.instructor_activo?.nombre_completo || "Sin asignar"}</div>
+                <div><strong>Trimestre:</strong> ${f.trimestre_actual || "—"}</div>
+                <div class="text-muted">${f.total_grupos_scrum} Grupos Scrum · ${f.total_proyectos} Proyectos · ${f.total_aprendices_activos} Aprendices</div>
+              </div>
+            </div>`
+          )
+          .join("");
+
+        if (fichasDisponibles.length) {
+          await cargarHistorialInstructoresFicha();
+        }
+      } catch (err) {
+        mostrarAlerta("No se pudo cargar la consola de coordinación.", "error");
+      }
+    }
+
+    async function cargarHistorialInstructoresFicha() {
+      const fichaId = document.getElementById("select-ficha-admin").value;
+      if (!fichaId) return;
+      try {
+        const res = await apiFetch(`/fichas/${fichaId}/historial-instructores/`);
+        const hist = res.results || res;
+        document.getElementById("lista-historial-instructores").innerHTML = hist.length
+          ? hist
+              .map(
+                (h) => `
+                <div class="p-3 bento-subcard text-xs flex items-center justify-between gap-2">
+                  <div>
+                    <div class="font-semibold">${h.instructor_nombre} <span class="font-mono opacity-75">(${h.instructor_documento})</span></div>
+                    <div class="text-[11px] text-muted">${h.trimestre}</div>
+                  </div>
+                  <span class="apple-pill !text-[10px]" style="${h.activa ? "border-color: var(--accent-emerald); color: var(--accent-emerald);" : ""}">
+                    ${h.activa ? "ACTIVO" : "HISTÓRICO"}
+                  </span>
+                </div>`
+              )
+              .join("")
+          : `<p class="text-xs text-muted">Sin historial registrado.</p>`;
+      } catch {
+        document.getElementById("lista-historial-instructores").innerHTML = "";
+      }
+    }
+
+    async function rotarInstructorAdmin(e) {
+      e.preventDefault();
+      const fichaId = document.getElementById("select-ficha-admin").value;
+      const instructor_id = document.getElementById("select-nuevo-instructor").value;
+      const trimestre = document.getElementById("input-trimestre").value.trim();
+      try {
+        const res = await apiFetch(`/fichas/${fichaId}/rotar-instructor/`, {
+          method: "POST",
+          body: JSON.stringify({ instructor_id, trimestre }),
+        });
+        mostrarAlerta(res.mensaje, "ok");
+        cargarPanelAdmin();
+      } catch (err) {
+        mostrarAlerta(JSON.stringify(err.data), "error");
+      }
+    }
+
+    async function crearNuevaFichaAdmin(e) {
+      e.preventDefault();
+      const numero = document.getElementById("nueva-ficha-numero").value.trim();
+      const programa = document.getElementById("nueva-ficha-programa").value.trim();
+      const jornada = document.getElementById("nueva-ficha-jornada").value;
+      const instructor_id = document.getElementById("nueva-ficha-instructor").value;
+      const trimestre = document.getElementById("nueva-ficha-trimestre").value.trim();
+      try {
+        await apiFetch("/fichas/", {
+          method: "POST",
+          body: JSON.stringify({ numero, programa, jornada, instructor_id, trimestre }),
+        });
+        mostrarAlerta(`Ficha ${numero} creada exitosamente en PostgreSQL.`, "ok");
+        document.getElementById("nueva-ficha-numero").value = "";
+        cargarPanelAdmin();
+      } catch (err) {
+        mostrarAlerta(err.data?.detalle || JSON.stringify(err.data), "error");
+      }
+    }
+
+    // ========================================================================
+    // Escenario 3D de Aegis en la Vista Aprendiz:
+    // Cuadros Gris, Azul y Rojo desde las 4 esquinas + Ojos 3D que siguen el cursor
+    // ========================================================================
+    let robotChatIniciado = false;
+
+    function inicializarRobot3DChat() {
+      if (robotChatIniciado || typeof THREE === "undefined") return;
+      const canvas = document.getElementById("canvas-agente-chat");
+      if (!canvas || canvas.clientWidth === 0) return;
+      robotChatIniciado = true;
+
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(40, canvas.clientWidth / canvas.clientHeight, 0.1, 50);
+      camera.position.set(0, 0.1, 5.2);
+
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+      renderer.setClearColor(0x000000, 0);
+      renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+      scene.add(new THREE.AmbientLight(0xd8dee9, 0.7));
+      const keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
+      keyLight.position.set(4, 6, 5);
+      scene.add(keyLight);
+      const blueRim = new THREE.DirectionalLight(0x1e88ff, 2.0);
+      blueRim.position.set(-5, 3, -3);
+      scene.add(blueRim);
+      const redFill = new THREE.PointLight(0xff1e38, 1.8, 18);
+      redFill.position.set(2, 0.5, 4);
+      scene.add(redFill);
+
+      // Cuadros 3D en los 3 colores del robot (Gris, Azul, Rojo) saliendo desde las 4 esquinas
+      const palette = [
+        new THREE.MeshStandardMaterial({ color: 0x8a93a6, metalness: 0.92, roughness: 0.16 }),
+        new THREE.MeshStandardMaterial({ color: 0x1e88ff, metalness: 0.75, roughness: 0.14, emissive: 0x0b5ed7, emissiveIntensity: 0.85 }),
+        new THREE.MeshStandardMaterial({ color: 0xff1e38, metalness: 0.75, roughness: 0.14, emissive: 0xd90429, emissiveIntensity: 0.95 }),
+      ];
+
+      const shardGeo = new THREE.BoxGeometry(0.09, 0.09, 0.022);
+      const shards = [];
+      const corners = [
+        new THREE.Vector3(-4.2, +2.8, -0.8),
+        new THREE.Vector3(+4.2, +2.8, -0.8),
+        new THREE.Vector3(-4.2, -2.8, -0.8),
+        new THREE.Vector3(+4.2, -2.8, -0.8),
+      ];
+
+      const totalShards = 280;
+      for (let i = 0; i < totalShards; i++) {
+        const mesh = new THREE.Mesh(shardGeo, palette[i % 3]);
+        const cIdx = i % 4;
+        const baseC = corners[cIdx];
+        const t = i / totalShards;
+        const angle = i * 2.39996;
+        const isRearHalo = i % 5 === 0;
+        const rad = isRearHalo
+          ? 0.45 + 0.35 * Math.sin(t * Math.PI)
+          : 0.14 + 0.28 * Math.sin(t * Math.PI);
+        const target = new THREE.Vector3(
+          Math.cos(angle) * rad,
+          (t - 0.5) * 1.65,
+          isRearHalo ? -0.55 - (i % 3) * 0.12 : -0.25 + Math.sin(angle) * 0.12
+        );
+
+        const signX = cIdx % 2 === 0 ? -1 : 1;
+        const signY = cIdx < 2 ? 1 : -1;
+        const start = new THREE.Vector3(
+          baseC.x + signX * (t * 1.4),
+          baseC.y + signY * (t * 1.1),
+          baseC.z - t * 1.2
+        );
+        const ctrl = new THREE.Vector3(start.x * 0.35, start.y * 0.25, 1.1);
+
+        scene.add(mesh);
+        shards.push({ mesh, start, ctrl, target, delay: (i % 35) / 100, isRearHalo });
+      }
+
+      const rigEl = document.getElementById("aegis-chat-rig");
+      const eyeL = document.getElementById("chat-eye-left");
+      const eyeR = document.getElementById("chat-eye-right");
+
+      let eyeTargetX = 0, eyeTargetY = 0;
+      let eyeLookX = 0, eyeLookY = 0;
+
+      window.addEventListener(
+        "pointermove",
+        (ev) => {
+          if (!rigEl) return;
+          const r = rigEl.getBoundingClientRect();
+          if (r.width === 0) return;
+          const ex = r.left + r.width * 0.563;
+          const ey = r.top + r.height * 0.233;
+          eyeTargetX = Math.max(-1, Math.min(1, (ev.clientX - ex) / (window.innerWidth * 0.35)));
+          eyeTargetY = Math.max(-1, Math.min(1, (ev.clientY - ey) / (window.innerHeight * 0.35)));
+        },
+        { passive: true }
+      );
+
+      let startTime = performance.now();
+      let revealed = false;
+
+      function animar(now) {
+        requestAnimationFrame(animar);
+        const elapsed = (now - startTime) / 1000;
+        const rawProgress = Math.min(1, elapsed / 4.6);
+        const p = 0.5 - 0.5 * Math.cos(rawProgress * Math.PI);
+        const fadeOut = p > 0.78 ? Math.max(0.001, 1 - (p - 0.78) / 0.22) : 1;
+
+        if (p > 0.70 && !revealed && rigEl) {
+          revealed = true;
+          rigEl.style.opacity = "1";
+          rigEl.style.transform = "scale(1)";
+        }
+
+        for (let i = 0; i < shards.length; i++) {
+          const s = shards[i];
+          const rawLp = Math.max(0, Math.min(1, (p - s.delay * (1 - p)) / (1 - s.delay * 0.5)));
+          const lp = rawLp < 0.5 ? 2 * rawLp * rawLp : 1 - Math.pow(-2 * rawLp + 2, 2) / 2;
+          const inv = 1 - lp;
+          s.mesh.position.set(
+            inv * inv * s.start.x + 2 * inv * lp * s.ctrl.x + lp * lp * s.target.x,
+            inv * inv * s.start.y + 2 * inv * lp * s.ctrl.y + lp * lp * s.target.y,
+            inv * inv * s.start.z + 2 * inv * lp * s.ctrl.z + lp * lp * s.target.z
+          );
+          s.mesh.rotation.x = inv * 2.1 + elapsed * 0.45;
+          s.mesh.rotation.y = inv * 1.8 + elapsed * 0.35;
+          s.mesh.scale.setScalar(s.isRearHalo ? Math.max(0.42, fadeOut) : fadeOut);
+        }
+
+        // Seguimiento 3D exclusivo en los ojos rojos
+        eyeLookX += (eyeTargetX - eyeLookX) * 0.14;
+        eyeLookY += (eyeTargetY - eyeLookY) * 0.14;
+        if (eyeL && eyeR) {
+          const ox = (eyeLookX * 2.4).toFixed(2);
+          const oy = (eyeLookY * 2.0).toFixed(2);
+          const tr = `translate3d(${ox}px, ${oy}px, 2px)`;
+          eyeL.style.transform = tr;
+          eyeR.style.transform = tr;
+        }
+
+        renderer.render(scene, camera);
+      }
+      requestAnimationFrame(animar);
+    }
+
+    function actualizarEstadoRobotChat(modo, texto) {
+      const sub = document.getElementById("robot-subtitulo-estado");
+      const badge = document.getElementById("badge-estado-robot");
+      const aura = document.getElementById("aegis-chat-aura");
+      if (sub) sub.textContent = texto;
+
+      if (modo === "alerta") {
+        if (aura) aura.style.background = "radial-gradient(circle, rgba(255,30,56,0.34) 0%, transparent 70%)";
+        if (badge) badge.textContent = "IDEA SIMILAR · VER GIROS";
+      } else if (modo === "escalado") {
+        if (aura) aura.style.background = "radial-gradient(circle, rgba(255,214,10,0.28) 0%, transparent 70%)";
+        if (badge) badge.textContent = "GUÍA PEDAGÓGICA IA";
+      } else {
+        if (aura) aura.style.background = "radial-gradient(circle, rgba(48,209,88,0.28) 0%, transparent 70%)";
+        if (badge) badge.textContent = "IDEA ÚNICA GUIADA";
+      }
+    }
+
+    // Auto-verificar sesión si existe JWT guardado
+    (async function init() {
+      const token = localStorage.getItem("sena_jwt_access");
+      if (token) {
+        try {
+          usuarioActual = await apiFetch("/auth/me/");
+          entrarAplicacion();
+        } catch {
+          localStorage.removeItem("sena_jwt_access");
+        }
+      }
+    })();
+  </script>
+</body>
+</html>

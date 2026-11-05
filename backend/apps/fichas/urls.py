@@ -1,0 +1,74 @@
+from django.urls import path
+from .views import (
+    AprendicesFichaListView,
+    AprendicesSinProyectoFichaView,
+    CargaMasivaGruposScrumView,
+    ConformarGrupoScrumView,
+    DisolverGrupoScrumView,
+    FichaDetailView,
+    FichaListCreateView,
+    GruposScrumFichaListView,
+    HistorialCargasMasivasFichaView,
+    HistorialInstructoresFichaView,
+    InstructoresActivosListView,
+    RotarInstructorFichaView,
+)
+
+urlpatterns = [
+    path("", FichaListCreateView.as_view(), name="fichas-list-create"),
+    path(
+        "instructores/",
+        InstructoresActivosListView.as_view(),
+        name="fichas-instructores-activos",
+    ),
+    path(
+        "<uuid:ficha_id>/",
+        FichaDetailView.as_view(),
+        name="fichas-detail",
+    ),
+    path(
+        "<uuid:ficha_id>/historial-instructores/",
+        HistorialInstructoresFichaView.as_view(),
+        name="fichas-historial-instructores",
+    ),
+    path(
+        "<uuid:ficha_id>/rotar-instructor/",
+        RotarInstructorFichaView.as_view(),
+        name="fichas-rotar-instructor",
+    ),
+    path(
+        "<uuid:ficha_id>/carga-masiva/",
+        CargaMasivaGruposScrumView.as_view(),
+        name="fichas-carga-masiva",
+    ),
+    path(
+        "<uuid:ficha_id>/cargas-masivas/",
+        HistorialCargasMasivasFichaView.as_view(),
+        name="fichas-historial-cargas-masivas",
+    ),
+    path(
+        "<uuid:ficha_id>/grupos-scrum/",
+        GruposScrumFichaListView.as_view(),
+        name="fichas-grupos-scrum",
+    ),
+    path(
+        "<uuid:ficha_id>/grupos-scrum/conformar/",
+        ConformarGrupoScrumView.as_view(),
+        name="fichas-conformar-grupo-scrum",
+    ),
+    path(
+        "<uuid:ficha_id>/aprendices/",
+        AprendicesFichaListView.as_view(),
+        name="fichas-aprendices",
+    ),
+    path(
+        "<uuid:ficha_id>/alertas-sin-proyecto/",
+        AprendicesSinProyectoFichaView.as_view(),
+        name="fichas-alertas-sin-proyecto",
+    ),
+    path(
+        "grupos-scrum/<uuid:grupo_id>/disolver/",
+        DisolverGrupoScrumView.as_view(),
+        name="grupos-scrum-disolver",
+    ),
+]
