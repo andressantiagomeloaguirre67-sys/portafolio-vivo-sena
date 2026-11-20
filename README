@@ -66,10 +66,7 @@ Sprints de **1 semana**. El Sprint 1 se ejecuta primero y el resto se planifica 
 
 #### Sprint 1 — Acceso por roles
 
-**Sprint Goal:** Al finalizar el Sprint 1, aprendices, instructores y administradores podrán acceder de forma segura a la plataforma con su documento (activar la cuenta, iniciar y cerrar sesión), y el aprendiz podrá recuperar su contraseña y consultar su perfil y su Grupo Scrum, dejando lista la base de acceso por roles sobre la que se construirán los siguientes sprints. Un Grupo Scrum podrá definir su idea con el apoyo de Aegis, comprobar que es original, registrarla, publicar su primera entrega, ejecutarla en el sandbox y ver en la bitácora quién hizo cada cambio.
-Historias: `HU_APR_002`, `HU_APR_001`, `HU_APR_003`, `HU_APR_004`, `HU_APR_015`, `HU_INS_001`, `HU_ADM_001`, `HU_APR_007`, `HU_APR_006`, `HU_APR_005`, `HU_APR_008`, `HU_APR_012`, `HU_APR_010`
-
-**Product Goal:**Ofrecer a los aprendices de ADSO del SENA una plataforma donde cada Grupo Scrum publique un único proyecto original, reciba el acompañamiento y la retroalimentación de su instructor y mantenga un portafolio vivo y verificable, con el apoyo del agente Aegis, que cuida la originalidad de las ideas y orienta sin hacerles la tarea.
+**Sprint Goal:** Los aprendices, instructores y administradores pueden acceder de forma segura a la plataforma. Un Grupo Scrum podrá definir su idea con el apoyo de Aegis, comprobar que es original, registrarla, publicar su primera entrega, ejecutarla en el sandbox y ver en la bitácora quién hizo cada cambio.
 
 ---
 
