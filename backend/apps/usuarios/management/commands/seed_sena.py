@@ -8,11 +8,14 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.asistente.services import generar_embedding_768
-from apps.fichas.models import Ficha, GrupoScrum
-from apps.fichas.services import procesar_carga_masiva_ficha, rotar_instructor_ficha
+from apps.fichas.models import Ficha, GrupoScrum, MiembroGrupoScrum
+from apps.fichas.services import (
+    registrar_e_invitar_aprendiz_individual,
+    rotar_instructor_ficha,
+)
 from apps.proyectos.models import HistorialProyecto, Proyecto
 from apps.proyectos.services import validar_y_reemplazar_entrega_unica
-from apps.revisiones.models import ComentarioRevision, ConsultaEscaladaInstructor
+from apps.revisiones.models import ComentarioRevision
 from apps.usuarios.models import EstadoCuenta, RolUsuario, Usuario
 
 
@@ -131,12 +134,24 @@ class Command(BaseCommand):
             },
         ]
         if not ficha_2874051.grupos_scrum.exists():
-            procesar_carga_masiva_ficha(
-                ficha=ficha_2874051,
-                instructor=inst_carlos,
-                registros=registros_ficha,
-                nombre_archivo="listado_ficha_2874051_trimestre3.xlsx",
-            )
+            for reg in registros_ficha:
+                apr, _, _ = registrar_e_invitar_aprendiz_individual(
+                    ficha=ficha_2874051,
+                    nombre_completo=reg["nombre_completo"],
+                    documento=reg["documento"],
+                    correo=reg["correo"],
+                )
+                grupo_obj, _ = GrupoScrum.objects.get_or_create(
+                    ficha=ficha_2874051,
+                    nombre_grupo=reg["grupo_scrum"],
+                    defaults={"estado": GrupoScrum.EstadoGrupo.PUBLICADO},
+                )
+                MiembroGrupoScrum.objects.get_or_create(
+                    ficha=ficha_2874051,
+                    aprendiz=apr,
+                    activo=True,
+                    defaults={"grupo": grupo_obj},
+                )
 
         # Activar las cuentas de los primeros 4 aprendices con clave por defecto "Sena2026*"
         for doc in ("1012345678", "1023456789", "1034567890", "1045678901"):
@@ -246,16 +261,6 @@ class Command(BaseCommand):
                 descripcion_cambio="Publicó la primera versión funcional del módulo de agendamiento.",
             )
 
-            ConsultaEscaladaInstructor.objects.create(
-                ficha=ficha_2874051,
-                grupo_scrum=grupo_2,
-                proyecto=proy_2,
-                aprendiz=camila,
-                instructor_destino=inst_carlos,
-                mensaje_original_aprendiz="¿Qué entidades nos faltan en el diagrama entidad-relación (MER) para manejar reprogramación de citas?",
-                motivo_escalado="Consulta técnica de lógica / diagramas / alcance del proyecto",
-            )
-
         # 6. Poblar también la Ficha 2901182 (Nocturna) con Aprendices activos, Grupos Scrum y Proyecto
         registros_ficha_nocturna = [
             {
@@ -284,12 +289,24 @@ class Command(BaseCommand):
             },
         ]
         if not ficha_2901182.grupos_scrum.exists():
-            procesar_carga_masiva_ficha(
-                ficha=ficha_2901182,
-                instructor=inst_carlos,
-                registros=registros_ficha_nocturna,
-                nombre_archivo="listado_ficha_2901182_nocturna.xlsx",
-            )
+            for reg in registros_ficha_nocturna:
+                apr, _, _ = registrar_e_invitar_aprendiz_individual(
+                    ficha=ficha_2901182,
+                    nombre_completo=reg["nombre_completo"],
+                    documento=reg["documento"],
+                    correo=reg["correo"],
+                )
+                grupo_obj, _ = GrupoScrum.objects.get_or_create(
+                    ficha=ficha_2901182,
+                    nombre_grupo=reg["grupo_scrum"],
+                    defaults={"estado": GrupoScrum.EstadoGrupo.PUBLICADO},
+                )
+                MiembroGrupoScrum.objects.get_or_create(
+                    ficha=ficha_2901182,
+                    aprendiz=apr,
+                    activo=True,
+                    defaults={"grupo": grupo_obj},
+                )
             for doc in ("1067890123", "1078901234", "1089012345", "1090123456"):
                 apr_noc = Usuario.objects.filter(documento=doc).first()
                 if apr_noc:

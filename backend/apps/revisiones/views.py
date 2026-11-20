@@ -1,7 +1,7 @@
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import generics, status
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -11,10 +11,9 @@ from apps.proyectos.models import HistorialProyecto, Proyecto
 from apps.proyectos.services import limpiar_almacenamiento_proyecto
 from apps.usuarios.models import EstadoCuenta, RolUsuario
 from apps.usuarios.permissions import EsAprendizActivo, EsInstructorOAdmin
-from .models import ComentarioRevision, ConsultaEscaladaInstructor, Reporte
+from .models import ComentarioRevision, Reporte
 from .serializers import (
     ComentarioRevisionSerializer,
-    ConsultaEscaladaInstructorSerializer,
     CrearComentarioInstructorSerializer,
     CrearReporteSerializer,
     ReporteSerializer,
@@ -116,64 +115,6 @@ class ResponderComentarioGrupoView(APIView):
 
         return Response(
             ComentarioRevisionSerializer(comentario).data,
-            status=status.HTTP_200_OK,
-        )
-
-
-class ConsultasEscaladasInstructorListView(generics.ListAPIView):
-    """
-    GET /api/v1/revisiones/consultas-escaladas/
-    Lista las consultas de lógica / diagramas / alcance que el Agente IA escaló
-    al instructor activo.
-    """
-
-    serializer_class = ConsultaEscaladaInstructorSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        user = self.request.user
-        qs = ConsultaEscaladaInstructor.objects.select_related(
-            "ficha", "grupo_scrum", "proyecto", "aprendiz", "instructor_destino"
-        )
-        estado = self.request.query_params.get("estado")
-        if estado:
-            qs = qs.filter(estado=estado.strip().upper())
-
-        if user.rol == RolUsuario.INSTRUCTOR:
-            return qs.filter(instructor_destino=user)
-        if user.rol == RolUsuario.APRENDIZ:
-            miembro = getattr(user, "miembro_grupo_scrum", None)
-            if miembro:
-                return qs.filter(grupo_scrum=miembro.grupo)
-            return qs.filter(aprendiz=user)
-        return qs
-
-
-class ResponderConsultaEscaladaView(APIView):
-    """
-    POST /api/v1/revisiones/consultas-escaladas/<uuid:consulta_id>/responder/
-    Permite al instructor asignado responder la consulta escalada por el Agente IA.
-    """
-
-    permission_classes = [EsInstructorOAdmin]
-
-    def post(self, request, consulta_id):
-        consulta = get_object_or_404(ConsultaEscaladaInstructor, id=consulta_id)
-        respuesta = (request.data.get("respuesta_instructor") or "").strip()
-        if not respuesta:
-            return Response(
-                {"detalle": "Debes escribir una respuesta para atender la consulta del grupo."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        consulta.respuesta_instructor = respuesta
-        consulta.estado = ConsultaEscaladaInstructor.EstadoConsulta.ATENDIDA
-        consulta.respondido_en = timezone.now()
-        consulta.save(
-            update_fields=["respuesta_instructor", "estado", "respondido_en"]
-        )
-        return Response(
-            ConsultaEscaladaInstructorSerializer(consulta).data,
             status=status.HTTP_200_OK,
         )
 
@@ -281,8 +222,7 @@ class ResumenDashboardInstructorView(APIView):
     """
     GET /api/v1/revisiones/resumen-instructor/
     Entrega un tablero consolidado para el Instructor o Administrador con métricas
-    en tiempo real de sus fichas asignadas, Grupos Scrum, proyectos, aprendices y
-    consultas técnicas escaladas por el Agente IA.
+    en tiempo real de sus fichas asignadas, Grupos Scrum, proyectos y aprendices.
     """
 
     permission_classes = [EsInstructorOAdmin]
@@ -294,15 +234,8 @@ class ResumenDashboardInstructorView(APIView):
                 asignaciones__instructor=user,
                 asignaciones__activa=True,
             ).distinct()
-            consultas_pendientes = ConsultaEscaladaInstructor.objects.filter(
-                instructor_destino=user,
-                estado=ConsultaEscaladaInstructor.EstadoConsulta.PENDIENTE,
-            ).count()
         else:
             fichas = Ficha.objects.filter(activa=True)
-            consultas_pendientes = ConsultaEscaladaInstructor.objects.filter(
-                estado=ConsultaEscaladaInstructor.EstadoConsulta.PENDIENTE
-            ).count()
 
         proyectos_qs = Proyecto.objects.filter(ficha__in=fichas)
         reportes_pendientes = Reporte.objects.filter(
@@ -346,7 +279,6 @@ class ResumenDashboardInstructorView(APIView):
                 "total_ideas_aprobadas_sin_codigo": proyectos_qs.filter(
                     estado=Proyecto.EstadoProyecto.IDEA_APROBADA
                 ).count(),
-                "consultas_ia_pendientes": consultas_pendientes,
                 "reportes_moderacion_pendientes": reportes_pendientes,
                 "fichas": resumen_fichas,
             },
@@ -375,11 +307,15 @@ class BuscadorGlobalInstructorView(APIView):
         q = (request.query_params.get("q") or "").strip()
         ficha_id = (request.query_params.get("ficha_id") or "").strip()
 
-        aprendices_qs = Usuario.objects.filter(rol=RolUsuario.APRENDIZ).select_related(
-            "suspendido_por", "miembro_grupo_scrum__grupo"
+        aprendices_qs = (
+            Usuario.objects.filter(rol=RolUsuario.APRENDIZ)
+            .select_related("suspendido_por")
+            .prefetch_related("membresias_grupo_scrum__grupo")
         )
-        grupos_qs = GrupoScrum.objects.select_related("ficha", "proyecto").prefetch_related(
-            "miembros__aprendiz"
+        grupos_qs = (
+            GrupoScrum.objects.exclude(estado=GrupoScrum.EstadoGrupo.ARCHIVADO)
+            .select_related("ficha", "proyecto")
+            .prefetch_related("miembros__aprendiz")
         )
         proyectos_qs = Proyecto.objects.select_related("ficha", "grupo_scrum").prefetch_related(
             "grupo_scrum__miembros__aprendiz", "comentarios"
@@ -396,8 +332,11 @@ class BuscadorGlobalInstructorView(APIView):
                 | Q(nombre_completo__icontains=q)
                 | Q(correo__icontains=q)
                 | Q(estado_cuenta__icontains=q)
-                | Q(miembro_grupo_scrum__grupo__nombre_grupo__icontains=q)
-            )
+                | Q(
+                    membresias_grupo_scrum__activo=True,
+                    membresias_grupo_scrum__grupo__nombre_grupo__icontains=q,
+                )
+            ).distinct()
             grupos_qs = grupos_qs.filter(
                 Q(nombre_grupo__icontains=q)
                 | Q(ficha__numero__icontains=q)

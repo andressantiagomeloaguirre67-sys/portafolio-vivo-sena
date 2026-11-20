@@ -2,11 +2,9 @@ from django.urls import path
 from .views import (
     BuscadorGlobalInstructorView,
     ComentariosProyectoListCreateView,
-    ConsultasEscaladasInstructorListView,
     ReportesProyectoListCreateView,
     ResolverReporteProyectoView,
     ResponderComentarioGrupoView,
-    ResponderConsultaEscaladaView,
     ResumenDashboardInstructorView,
 )
 
@@ -30,16 +28,6 @@ urlpatterns = [
         "comentarios/<uuid:comentario_id>/responder/",
         ResponderComentarioGrupoView.as_view(),
         name="revisiones-responder-comentario",
-    ),
-    path(
-        "consultas-escaladas/",
-        ConsultasEscaladasInstructorListView.as_view(),
-        name="revisiones-consultas-escaladas",
-    ),
-    path(
-        "consultas-escaladas/<uuid:consulta_id>/responder/",
-        ResponderConsultaEscaladaView.as_view(),
-        name="revisiones-responder-consulta-escalada",
     ),
     path(
         "reportes/",

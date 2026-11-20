@@ -33,6 +33,11 @@ class Proyecto(models.Model):
         FICHA = "FICHA", "Solo la ficha"
         PUBLICO = "PUBLICO", "Público"
 
+    class EstadoOriginalidad(models.TextChoices):
+        SIN_VALIDAR = "SIN_VALIDAR", "Sin validar"
+        ORIGINAL = "ORIGINAL", "Original"
+        EN_DIFERENCIACION = "EN_DIFERENCIACION", "En diferenciación"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     ficha = models.ForeignKey(
         Ficha, on_delete=models.PROTECT, related_name="proyectos"
@@ -69,6 +74,12 @@ class Proyecto(models.Model):
         max_length=15,
         choices=Visibilidad.choices,
         default=Visibilidad.FICHA,
+    )
+    estado_originalidad = models.CharField(
+        max_length=20,
+        choices=EstadoOriginalidad.choices,
+        default=EstadoOriginalidad.SIN_VALIDAR,
+        db_index=True,
     )
     actualizado_en = models.DateTimeField(auto_now=True)
 

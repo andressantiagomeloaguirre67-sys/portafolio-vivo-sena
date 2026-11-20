@@ -217,3 +217,20 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
             self.estado_cuenta = EstadoCuenta.PENDIENTE
             self.is_active = False
         self.save(update_fields=["estado_cuenta", "is_active"])
+
+    @property
+    def miembro_grupo_scrum(self):
+        """
+        Retorna la membresía activa del aprendiz en un Grupo Scrum (o None si está sin equipo).
+        Mantiene compatibilidad con todos los módulos que consultan el equipo actual del aprendiz.
+        """
+        if hasattr(self, "_prefetched_objects_cache") and "membresias_grupo_scrum" in self._prefetched_objects_cache:
+            for m in self._prefetched_objects_cache["membresias_grupo_scrum"]:
+                if m.activo:
+                    return m
+            return None
+        return (
+            self.membresias_grupo_scrum.filter(activo=True)
+            .select_related("grupo", "grupo__ficha")
+            .first()
+        )

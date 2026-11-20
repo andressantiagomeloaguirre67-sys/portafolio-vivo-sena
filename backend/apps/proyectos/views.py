@@ -10,8 +10,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.asistente.services import (
-    buscar_proyectos_similares,
-    generar_embedding_768,
+    evaluar_originalidad_idea,
+    registrar_embedding_idea_con_bloqueo,
 )
 from apps.usuarios.models import EstadoCuenta, RolUsuario
 from apps.usuarios.permissions import EsAprendizActivo, EsInstructorOAdmin
@@ -85,10 +85,13 @@ class FeedProyectosListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        from apps.fichas.models import GrupoScrum
+
         user = self.request.user
         qs = (
             Proyecto.objects.select_related("ficha", "grupo_scrum")
             .prefetch_related("grupo_scrum__miembros__aprendiz", "comentarios")
+            .filter(grupo_scrum__estado=GrupoScrum.EstadoGrupo.PUBLICADO)
             .exclude(
                 estado__in=[
                     Proyecto.EstadoProyecto.ELIMINADO_POR_GRUPO,
@@ -240,21 +243,30 @@ class ValidarIdeaProyectoView(APIView):
         miembro = getattr(request.user, "miembro_grupo_scrum", None)
         excluir_grupo_id = miembro.grupo_id if miembro else None
 
-        similares = buscar_proyectos_similares(
+        evaluacion = evaluar_originalidad_idea(
             titulo_propuesto=serializer.validated_data["titulo"],
             idea_propuesta=serializer.validated_data["introduccion"],
             excluir_grupo_id=excluir_grupo_id,
         )
-        es_unica = len(similares) == 0
+        veredicto = evaluacion["veredicto"]
+        es_unica = evaluacion["es_idea_unica"]
+        if veredicto == "ORIGINAL":
+            mensaje = "La idea y el título son originales en el SENA. Tu Grupo Scrum puede registrarlos."
+        elif veredicto == "SIMILAR":
+            mensaje = f"Similitud parcial detectada: {evaluacion['explicacion_choque']['motivo']}"
+        else:
+            mensaje = f"Idea repetida detectada: {evaluacion['explicacion_choque']['motivo']}"
+
         return Response(
             {
                 "es_idea_unica": es_unica,
-                "proyectos_similares": similares,
-                "mensaje": (
-                    "La idea y el título son únicos en el SENA. Tu Grupo Scrum puede registrarlos."
-                    if es_unica
-                    else "Se encontraron proyectos en el SENA con un título o enfoque similar."
-                ),
+                "estado_originalidad": veredicto,
+                "etiqueta_originalidad": evaluacion["estado_ui"],
+                "puntaje_similitud": evaluacion["puntaje_max"],
+                "umbrales": evaluacion["umbrales"],
+                "explicacion_choque": evaluacion["explicacion_choque"],
+                "proyectos_similares": evaluacion["coincidencias"],
+                "mensaje": mensaje,
             },
             status=status.HTTP_200_OK,
         )
@@ -293,7 +305,7 @@ class MiGrupoProyectoView(APIView):
                 "correo": m.aprendiz.correo,
                 "estado_cuenta": m.aprendiz.estado_cuenta,
             }
-            for m in grupo.miembros.select_related("aprendiz").all()
+            for m in grupo.miembros.filter(activo=True).select_related("aprendiz")
         ]
         if not proyecto:
             return Response(
@@ -335,11 +347,11 @@ class MiGrupoProyectoView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Regla 3.2: Verificar que el Grupo Scrum tenga mínimo 2 aprendices no suspendidos
+        # Regla 3.2: Verificar que el Grupo Scrum tenga mínimo 2 aprendices activos no suspendidos
         activos_en_grupo = (
-            grupo.miembros.exclude(
-                aprendiz__estado_cuenta=EstadoCuenta.SUSPENDIDO
-            ).count()
+            grupo.miembros.filter(activo=True)
+            .exclude(aprendiz__estado_cuenta=EstadoCuenta.SUSPENDIDO)
+            .count()
         )
         if activos_en_grupo < 2:
             return Response(
@@ -360,70 +372,31 @@ class MiGrupoProyectoView(APIView):
         titulo = " ".join(datos["titulo"].strip().split())
         introduccion = datos["introduccion"].strip()
 
-        # Verificar colisión exacta de título (case-insensitive) con otro grupo
-        colision_titulo = (
-            Proyecto.objects.filter(titulo__iexact=titulo)
-            .exclude(grupo_scrum=grupo)
-            .select_related("ficha", "grupo_scrum")
-            .first()
-        )
-        if colision_titulo:
-            return Response(
-                {
-                    "detalle": (
-                        f"El título '{titulo}' ya está registrado por "
-                        f"'{colision_titulo.grupo_scrum.nombre_grupo}' (Ficha {colision_titulo.ficha.numero}). "
-                        "Ningún proyecto en el SENA puede repetir nombre."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST,
+        # Validación y registro serializado con bloqueo transaccional PostgreSQL (`pg_advisory_xact_lock`)
+        # Evita colisiones simultáneas y aplica privacidad estricta sobre proyectos no públicos.
+        try:
+            proyecto, creado, evaluacion = registrar_embedding_idea_con_bloqueo(
+                grupo=grupo,
+                titulo=titulo,
+                introduccion=introduccion,
+                tecnologias=datos.get("tecnologias", []),
+                visibilidad=datos.get("visibilidad", Proyecto.Visibilidad.FICHA),
+                permitir_similar=False,
             )
-
-        # Verificar originalidad en PostgreSQL (título + vector 768 dims)
-        similares = buscar_proyectos_similares(
-            titulo_propuesto=titulo,
-            idea_propuesta=introduccion,
-            excluir_grupo_id=grupo.id,
-        )
-        if similares:
-            return Response(
-                {
-                    "detalle": (
-                        f"El Agente Guardián detectó que esta idea o título se parece a "
-                        f"'{similares[0]['titulo']}' ({similares[0]['grupo_scrum']} - Ficha {similares[0]['ficha']}). "
-                        "Ningún proyecto en el SENA puede repetir nombre ni idea."
-                    ),
-                    "proyectos_similares": similares,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        embedding = generar_embedding_768(f"{titulo} {introduccion}")
-
-        proyecto_existente = getattr(grupo, "proyecto", None)
-        nuevo_estado = (
-            proyecto_existente.estado
-            if (
-                proyecto_existente
-                and proyecto_existente.estado == Proyecto.EstadoProyecto.PUBLICADO
-            )
-            else Proyecto.EstadoProyecto.IDEA_APROBADA
-        )
-
-        proyecto, creado = Proyecto.objects.update_or_create(
-            grupo_scrum=grupo,
-            defaults={
-                "ficha": grupo.ficha,
-                "titulo": titulo,
-                "introduccion": introduccion,
-                "embedding_idea": embedding,
-                "tecnologias": datos.get("tecnologias", []),
-                "visibilidad": datos.get(
-                    "visibilidad", Proyecto.Visibilidad.FICHA
-                ),
-                "estado": nuevo_estado,
-            },
-        )
+        except DjangoValidationError as exc:
+            evaluacion_err = getattr(exc, "evaluacion_originalidad", None)
+            payload_err = {"detalle": exc.messages[0]}
+            if evaluacion_err:
+                payload_err.update(
+                    {
+                        "estado_originalidad": evaluacion_err["veredicto"],
+                        "etiqueta_originalidad": evaluacion_err["estado_ui"],
+                        "puntaje_similitud": evaluacion_err["puntaje_max"],
+                        "explicacion_choque": evaluacion_err["explicacion_choque"],
+                        "proyectos_similares": evaluacion_err["coincidencias"],
+                    }
+                )
+            return Response(payload_err, status=status.HTTP_400_BAD_REQUEST)
 
         HistorialProyecto.objects.create(
             proyecto=proyecto,

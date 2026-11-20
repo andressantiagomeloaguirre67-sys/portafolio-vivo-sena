@@ -158,7 +158,8 @@ def evaluar_alerta_grupo_tras_suspension(aprendiz: Usuario) -> dict | None:
 
     grupo = miembro.grupo
     miembros_activos = (
-        grupo.miembros.select_related("aprendiz")
+        grupo.miembros.filter(activo=True)
+        .select_related("aprendiz")
         .exclude(aprendiz__estado_cuenta=EstadoCuenta.SUSPENDIDO)
         .count()
     )

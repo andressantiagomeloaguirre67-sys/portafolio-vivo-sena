@@ -3,7 +3,8 @@ from django.conf import settings
 from django.contrib import admin
 from django.db import connection
 from django.http import HttpResponse, JsonResponse
-from django.urls import include, path
+from django.shortcuts import redirect
+from django.urls import include, path, re_path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from apps.proyectos.views import SandboxEjecucionProyectoView
@@ -58,12 +59,17 @@ def servir_hero_asset(request, filename: str):
     )
 
 
-def servir_plataforma_spa(request):
+def servir_plataforma_spa(request, **kwargs):
     """Sirve la plataforma completa multi-rol (Aprendiz / Instructor / Admin + Sandbox)."""
     return HttpResponse(
         FRONTEND_SPA_HTML.read_text(encoding="utf-8"),
         content_type="text/html; charset=utf-8",
     )
+
+
+def redirigir_tutoria_a_resumen(request, ficha_numero: str):
+    """Redirección limpia desde la ruta retirada de Tutoría IA hacia Resumen de la ficha."""
+    return redirect(f"/instructor/fichas/{ficha_numero}/resumen")
 
 
 def api_health_status(request):
@@ -105,6 +111,27 @@ urlpatterns = [
     path("aegis_body.png", lambda r: servir_hero_asset(r, "aegis_body.png"), name="aegis-body-png"),
     # 2. Plataforma Principal Multi-Rol (Aprendiz / Instructor / Admin + Sandbox)
     path("app/", servir_plataforma_spa, name="plataforma-spa"),
+    re_path(r"^instructor/fichas/?$", servir_plataforma_spa, name="instructor-fichas-hub"),
+    re_path(
+        r"^instructor/fichas/(?P<ficha_numero>[^/]+)/tutoria/?$",
+        redirigir_tutoria_a_resumen,
+        name="instructor-ficha-tutoria-redirect",
+    ),
+    re_path(
+        r"^fichas/(?P<ficha_numero>[^/]+)/tutoria/?$",
+        redirigir_tutoria_a_resumen,
+        name="ficha-tutoria-redirect",
+    ),
+    re_path(
+        r"^instructor/fichas/(?P<ficha_numero>[^/]+)/?$",
+        servir_plataforma_spa,
+        name="instructor-ficha-raiz",
+    ),
+    re_path(
+        r"^instructor/fichas/(?P<ficha_numero>[^/]+)/(?P<seccion>[^/]+)/?$",
+        servir_plataforma_spa,
+        name="instructor-ficha-seccion",
+    ),
     # 3. Estado y Administración
     path("api/v1/health/", api_health_status, name="api-health"),
     path("admin/", admin.site.urls),

@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Exists, OuterRef, Q
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
@@ -8,21 +9,27 @@ from rest_framework.views import APIView
 from apps.usuarios.models import EstadoCuenta, RolUsuario, Usuario
 from apps.usuarios.permissions import EsInstructorOAdmin
 from apps.usuarios.serializers import UsuarioPerfilSerializer
-from .models import AsignacionInstructor, CargaMasiva, Ficha, GrupoScrum
+from .models import AsignacionInstructor, Ficha, GrupoScrum, MiembroGrupoScrum
 from .serializers import (
+    AgregarIntegranteEquipoSerializer,
     AsignacionInstructorSerializer,
-    CargaMasivaFichaRequestSerializer,
-    CargaMasivaSerializer,
-    ConformarGrupoScrumSerializer,
+    CambiarEstadoEquipoSerializer,
+    CambiarRolIntegranteSerializer,
+    CrearEquipoScrumSerializer,
     FichaSerializer,
     GrupoScrumSerializer,
+    MoverIntegranteEquipoSerializer,
+    RegistrarAprendizIndividualSerializer,
     RotarInstructorSerializer,
 )
 from .services import (
-    conformar_o_reasignar_grupo_scrum,
-    disolver_grupo_scrum,
-    extraer_registros_desde_archivo,
-    procesar_carga_masiva_ficha,
+    agregar_integrante_a_equipo,
+    archivar_equipo_scrum,
+    cambiar_estado_equipo_scrum,
+    cambiar_rol_integrante_equipo,
+    crear_equipo_scrum,
+    mover_integrante_de_equipo,
+    registrar_e_invitar_aprendiz_individual,
     rotar_instructor_ficha,
 )
 
@@ -89,8 +96,7 @@ class FichaDetailView(generics.RetrieveUpdateAPIView):
 class HistorialInstructoresFichaView(generics.ListAPIView):
     """
     GET /api/v1/fichas/<uuid:ficha_id>/historial-instructores/
-    Regla 2: Muestra el historial de rotación trimestral de instructores de la ficha,
-    destacando quién está activo en el trimestre actual y quiénes estuvieron antes.
+    Regla 2: Muestra el historial de rotación trimestral de instructores de la ficha.
     """
 
     serializer_class = AsignacionInstructorSerializer
@@ -107,7 +113,7 @@ class HistorialInstructoresFichaView(generics.ListAPIView):
 class InstructoresActivosListView(APIView):
     """
     GET /api/v1/fichas/instructores/
-    Lista los instructores activos para poder rotar el instructor de una ficha por trimestre.
+    Lista los instructores activos para rotación trimestral.
     """
 
     permission_classes = [IsAuthenticated]
@@ -135,8 +141,6 @@ class RotarInstructorFichaView(APIView):
     """
     POST /api/v1/fichas/<uuid:ficha_id>/rotar-instructor/
     Regla 2: Una ficha solo puede tener 1 instructor activo por trimestre.
-    Desactiva la asignación anterior (conservando su historial de comentarios)
-    y activa al nuevo instructor.
     """
 
     permission_classes = [EsInstructorOAdmin]
@@ -167,120 +171,128 @@ class RotarInstructorFichaView(APIView):
         )
 
 
-class CargaMasivaGruposScrumView(APIView):
+class GruposScrumFichaListView(APIView):
     """
-    POST /api/v1/fichas/<uuid:ficha_id>/carga-masiva/
-    Regla 3:
-    - Acepta archivo `.xlsx`/`.csv` (`archivo`) o lista JSON (`registros`).
-    - Valida que ningún `documento` ni `nombre_completo` se repita en varios Grupos Scrum.
-    - Valida que todo Grupo Scrum tenga mínimo 2 aprendices.
-    - Si hay alertas, responde con 400 e informa inmediatamente las personas/grupos afectados.
+    GET /api/v1/fichas/<uuid:ficha_id>/grupos-scrum/
+    Lista los Equipos Scrum de la ficha (soporta `?estado=BORRADOR|PUBLICADO|ARCHIVADO|TODOS`).
+
+    POST /api/v1/fichas/<uuid:ficha_id>/grupos-scrum/
+    Crea un nuevo Equipo Scrum directamente seleccionando aprendices activos sin equipo
+    de la ficha, con proyecto asociado, roles Scrum opcionales y estado inicial (Borrador/Publicado).
     """
 
-    permission_classes = [EsInstructorOAdmin]
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [EsInstructorOAdmin()]
+        return [IsAuthenticated()]
+
+    def get(self, request, ficha_id):
+        get_object_or_404(Ficha, id=ficha_id)
+        qs = (
+            GrupoScrum.objects.filter(ficha_id=ficha_id)
+            .prefetch_related("miembros__aprendiz")
+            .select_related("proyecto")
+        )
+        estado = (request.query_params.get("estado") or "").strip().upper()
+        if estado in (
+            GrupoScrum.EstadoGrupo.BORRADOR,
+            GrupoScrum.EstadoGrupo.PUBLICADO,
+            GrupoScrum.EstadoGrupo.ARCHIVADO,
+        ):
+            qs = qs.filter(estado=estado)
+        elif estado != "TODOS":
+            qs = qs.exclude(estado=GrupoScrum.EstadoGrupo.ARCHIVADO)
+
+        return Response(GrupoScrumSerializer(qs, many=True).data, status=status.HTTP_200_OK)
 
     def post(self, request, ficha_id):
         ficha = get_object_or_404(Ficha, id=ficha_id)
-        archivo_subido = request.FILES.get("archivo")
+        serializer = CrearEquipoScrumSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        datos = serializer.validated_data
 
-        if archivo_subido:
-            nombre_archivo = archivo_subido.name
-            registros = extraer_registros_desde_archivo(archivo_subido)
-            if not registros:
-                return Response(
-                    {"detalle": "El archivo subido está vacío o no tiene formato válido."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        else:
-            serializer = CargaMasivaFichaRequestSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            nombre_archivo = serializer.validated_data["nombre_archivo"]
-            registros = serializer.validated_data["registros"]
-
-        carga, resultado = procesar_carga_masiva_ficha(
-            ficha=ficha,
-            instructor=request.user,
-            registros=registros,
-            nombre_archivo=nombre_archivo,
-        )
-
-        if carga.estado == "CON_ALERTAS":
+        try:
+            grupo = crear_equipo_scrum(
+                ficha=ficha,
+                nombre_grupo=datos["nombre_grupo"],
+                proyecto_titulo=datos["proyecto_titulo"],
+                proyecto_descripcion=datos["proyecto_descripcion"],
+                integrantes=datos["integrantes"],
+                estado=datos.get("estado", GrupoScrum.EstadoGrupo.BORRADOR),
+            )
+        except DjangoValidationError as exc:
             return Response(
-                {
-                    "mensaje": (
-                        "Alerta de validación: Se detectaron inconsistencias, personas repetidas en varios "
-                        "Grupos Scrum o grupos con menos de 2 aprendices."
-                    ),
-                    "carga": CargaMasivaSerializer(carga).data,
-                    "alertas": resultado,
-                },
+                {"detalle": exc.messages[0]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        grupo = (
+            GrupoScrum.objects.select_related("proyecto")
+            .prefetch_related("miembros__aprendiz")
+            .get(id=grupo.id)
+        )
+        etiqueta_estado = "publicado" if grupo.estado == GrupoScrum.EstadoGrupo.PUBLICADO else "guardado como borrador"
         return Response(
             {
-                "mensaje": "Carga masiva de aprendices y Grupos Scrum procesada exitosamente.",
-                "carga": CargaMasivaSerializer(carga).data,
-                "aprendices_procesados": resultado,
+                "mensaje": f"Equipo '{grupo.nombre_grupo}' {etiqueta_estado} exitosamente.",
+                "grupo_scrum": GrupoScrumSerializer(grupo).data,
             },
             status=status.HTTP_201_CREATED,
         )
 
 
-class HistorialCargasMasivasFichaView(generics.ListAPIView):
+class CambiarEstadoGrupoScrumView(APIView):
     """
-    GET /api/v1/fichas/<uuid:ficha_id>/cargas-masivas/
-    Lista las cargas masivas realizadas sobre una ficha junto con sus alertas registradas.
-    """
-
-    serializer_class = CargaMasivaSerializer
-    permission_classes = [EsInstructorOAdmin]
-
-    def get_queryset(self):
-        return (
-            CargaMasiva.objects.filter(ficha_id=self.kwargs["ficha_id"])
-            .select_related("instructor", "ficha")
-            .order_by("-creado_en")
-        )
-
-
-class GruposScrumFichaListView(generics.ListAPIView):
-    """
-    GET /api/v1/fichas/<uuid:ficha_id>/grupos-scrum/
-    Lista los Grupos Scrum de una ficha con sus integrantes y proyecto asociado.
-    """
-
-    serializer_class = GrupoScrumSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return (
-            GrupoScrum.objects.filter(ficha_id=self.kwargs["ficha_id"])
-            .prefetch_related("miembros__aprendiz")
-            .select_related("proyecto")
-        )
-
-
-class ConformarGrupoScrumView(APIView):
-    """
-    POST /api/v1/fichas/<uuid:ficha_id>/grupos-scrum/conformar/
-    Permite al instructor crear un Grupo Scrum o reasignar aprendices activos de la ficha
-    cumpliendo mínimo 2 aprendices activos por grupo y máximo 1 grupo por aprendiz.
+    PATCH /api/v1/fichas/grupos-scrum/<uuid:grupo_id>/estado/
+    Cambia el estado de un equipo entre BORRADOR y PUBLICADO.
     """
 
     permission_classes = [EsInstructorOAdmin]
 
-    def post(self, request, ficha_id):
-        ficha = get_object_or_404(Ficha, id=ficha_id)
-        serializer = ConformarGrupoScrumSerializer(data=request.data)
+    def patch(self, request, grupo_id):
+        grupo = get_object_or_404(GrupoScrum, id=grupo_id)
+        serializer = CambiarEstadoEquipoSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
-            grupo = conformar_o_reasignar_grupo_scrum(
-                ficha=ficha,
-                nombre_grupo=serializer.validated_data["nombre_grupo"],
-                documentos_aprendices=serializer.validated_data["documentos_aprendices"],
+            grupo = cambiar_estado_equipo_scrum(
+                grupo=grupo,
+                nuevo_estado=serializer.validated_data["estado"],
             )
+        except DjangoValidationError as exc:
+            return Response(
+                {"detalle": exc.messages[0]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        grupo = (
+            GrupoScrum.objects.select_related("proyecto")
+            .prefetch_related("miembros__aprendiz")
+            .get(id=grupo.id)
+        )
+        etiqueta = "Publicado" if grupo.estado == GrupoScrum.EstadoGrupo.PUBLICADO else "Borrador"
+        return Response(
+            {
+                "mensaje": f"El equipo '{grupo.nombre_grupo}' ahora está en estado {etiqueta}.",
+                "grupo_scrum": GrupoScrumSerializer(grupo).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ArchivarGrupoScrumView(APIView):
+    """
+    POST /api/v1/fichas/grupos-scrum/<uuid:grupo_id>/archivar/
+    Regla No-Delete: archiva el equipo en lugar de eliminarlo físicamente,
+    cierra sus membresías activas y libera a sus aprendices para otros equipos.
+    """
+
+    permission_classes = [EsInstructorOAdmin]
+
+    def post(self, request, grupo_id):
+        grupo = get_object_or_404(GrupoScrum, id=grupo_id)
+        try:
+            resultado = archivar_equipo_scrum(grupo)
         except DjangoValidationError as exc:
             return Response(
                 {"detalle": exc.messages[0]},
@@ -289,8 +301,131 @@ class ConformarGrupoScrumView(APIView):
 
         return Response(
             {
-                "mensaje": f"Grupo '{grupo.nombre_grupo}' conformado exitosamente en la ficha {ficha.numero}.",
+                "mensaje": (
+                    f"El equipo '{resultado['nombre_grupo']}' fue archivado sin borrar su historial. "
+                    "Sus integrantes quedaron disponibles para asignarse a otro equipo."
+                ),
+                **resultado,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class IntegrantesGrupoScrumView(APIView):
+    """
+    POST /api/v1/fichas/grupos-scrum/<uuid:grupo_id>/integrantes/
+    Agrega un aprendiz activo sin equipo de la misma ficha al grupo.
+
+    PATCH /api/v1/fichas/grupos-scrum/<uuid:grupo_id>/integrantes/
+    Actualiza el rol Scrum de un integrante activo del grupo.
+    """
+
+    permission_classes = [EsInstructorOAdmin]
+
+    def post(self, request, grupo_id):
+        grupo = get_object_or_404(GrupoScrum, id=grupo_id)
+        serializer = AgregarIntegranteEquipoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            membresia = agregar_integrante_a_equipo(
+                grupo=grupo,
+                aprendiz_id=serializer.validated_data["aprendiz_id"],
+                rol_scrum=serializer.validated_data.get(
+                    "rol_scrum", MiembroGrupoScrum.RolScrum.DEVELOPER
+                ),
+            )
+        except DjangoValidationError as exc:
+            return Response(
+                {"detalle": exc.messages[0]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        grupo = (
+            GrupoScrum.objects.select_related("proyecto")
+            .prefetch_related("miembros__aprendiz")
+            .get(id=grupo.id)
+        )
+        return Response(
+            {
+                "mensaje": f"{membresia.aprendiz.nombre_completo} se agregó al equipo '{grupo.nombre_grupo}'.",
                 "grupo_scrum": GrupoScrumSerializer(grupo).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    def patch(self, request, grupo_id):
+        grupo = get_object_or_404(GrupoScrum, id=grupo_id)
+        serializer = CambiarRolIntegranteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            membresia = cambiar_rol_integrante_equipo(
+                grupo=grupo,
+                aprendiz_id=serializer.validated_data["aprendiz_id"],
+                rol_scrum=serializer.validated_data["rol_scrum"],
+            )
+        except DjangoValidationError as exc:
+            return Response(
+                {"detalle": exc.messages[0]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        grupo = (
+            GrupoScrum.objects.select_related("proyecto")
+            .prefetch_related("miembros__aprendiz")
+            .get(id=grupo.id)
+        )
+        return Response(
+            {
+                "mensaje": f"Rol de {membresia.aprendiz.nombre_completo} actualizado.",
+                "grupo_scrum": GrupoScrumSerializer(grupo).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class MoverIntegranteGrupoScrumView(APIView):
+    """
+    POST /api/v1/fichas/grupos-scrum/<uuid:grupo_id>/mover-integrante/
+    Mueve un aprendiz desde `grupo_id` hacia `grupo_destino_id` cerrando su membresía previa
+    con `fecha_fin` y abriendo la nueva sin borrar historial.
+    """
+
+    permission_classes = [EsInstructorOAdmin]
+
+    def post(self, request, grupo_id):
+        grupo_origen = get_object_or_404(GrupoScrum, id=grupo_id)
+        serializer = MoverIntegranteEquipoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            nueva_membresia = mover_integrante_de_equipo(
+                grupo_origen=grupo_origen,
+                aprendiz_id=serializer.validated_data["aprendiz_id"],
+                grupo_destino_id=serializer.validated_data["grupo_destino_id"],
+                rol_scrum=serializer.validated_data.get(
+                    "rol_scrum", MiembroGrupoScrum.RolScrum.DEVELOPER
+                ),
+            )
+        except DjangoValidationError as exc:
+            return Response(
+                {"detalle": exc.messages[0]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        grupo_actualizado = (
+            GrupoScrum.objects.select_related("proyecto")
+            .prefetch_related("miembros__aprendiz")
+            .get(id=grupo_origen.id)
+        )
+        return Response(
+            {
+                "mensaje": (
+                    f"{nueva_membresia.aprendiz.nombre_completo} fue movido al equipo "
+                    f"'{nueva_membresia.grupo.nombre_grupo}' conservando su historial."
+                ),
+                "grupo_scrum": GrupoScrumSerializer(grupo_actualizado).data,
             },
             status=status.HTTP_200_OK,
         )
@@ -299,26 +434,43 @@ class ConformarGrupoScrumView(APIView):
 class AprendicesFichaListView(APIView):
     """
     GET /api/v1/fichas/<uuid:ficha_id>/aprendices/
-    Lista todos los aprendices matriculados en la ficha (activos, pendientes y suspendidos con su motivo).
-    Permite al instructor buscar con `?search=` (por documento, nombre, correo o nombre de Grupo Scrum)
-    y filtrar con `?estado_cuenta=ACTIVO|PENDIENTE|SUSPENDIDO`.
+    Lista los aprendices matriculados en la ficha con filtros:
+    - `?search=` (documento, nombre, correo o nombre de equipo activo)
+    - `?estado_cuenta=ACTIVO|PENDIENTE|SUSPENDIDO`
+    - `?sin_equipo=true` (solo aprendices sin membresía activa en la ficha)
+
+    POST /api/v1/fichas/<uuid:ficha_id>/aprendices/
+    Registra e invita por correo a un aprendiz individual en la ficha.
     """
 
-    permission_classes = [IsAuthenticated]
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [EsInstructorOAdmin()]
+        return [IsAuthenticated()]
 
     def get(self, request, ficha_id):
-        from django.db.models import Q
-
         ficha = get_object_or_404(Ficha, id=ficha_id)
-        matriculas = ficha.matriculas.select_related(
-            "aprendiz",
-            "aprendiz__suspendido_por",
-            "aprendiz__miembro_grupo_scrum__grupo",
+        membresia_activa_subq = MiembroGrupoScrum.objects.filter(
+            ficha=ficha,
+            aprendiz_id=OuterRef("aprendiz_id"),
+            activo=True,
+        )
+        matriculas = (
+            ficha.matriculas.filter(activa=True)
+            .select_related("aprendiz", "aprendiz__suspendido_por")
+            .prefetch_related("aprendiz__membresias_grupo_scrum__grupo")
+            .annotate(tiene_equipo_activo=Exists(membresia_activa_subq))
         )
 
         estado_cuenta = (request.query_params.get("estado_cuenta") or "").strip().upper()
         if estado_cuenta:
             matriculas = matriculas.filter(aprendiz__estado_cuenta=estado_cuenta)
+
+        sin_equipo = (request.query_params.get("sin_equipo") or "").strip().lower()
+        if sin_equipo in ("true", "1", "si"):
+            matriculas = matriculas.filter(tiene_equipo_activo=False).exclude(
+                aprendiz__estado_cuenta=EstadoCuenta.SUSPENDIDO
+            )
 
         busqueda = (request.query_params.get("search") or "").strip()
         if busqueda:
@@ -326,49 +478,67 @@ class AprendicesFichaListView(APIView):
                 Q(aprendiz__documento__icontains=busqueda)
                 | Q(aprendiz__nombre_completo__icontains=busqueda)
                 | Q(aprendiz__correo__icontains=busqueda)
-                | Q(aprendiz__miembro_grupo_scrum__grupo__nombre_grupo__icontains=busqueda)
-            )
+                | Q(
+                    aprendiz__membresias_grupo_scrum__activo=True,
+                    aprendiz__membresias_grupo_scrum__grupo__nombre_grupo__icontains=busqueda,
+                )
+            ).distinct()
 
         matriculas = matriculas.order_by("aprendiz__nombre_completo")
-        datos = [
-            UsuarioPerfilSerializer(mat.aprendiz).data for mat in matriculas
-        ]
+        datos = [UsuarioPerfilSerializer(mat.aprendiz).data for mat in matriculas]
         return Response(datos, status=status.HTTP_200_OK)
 
+    def post(self, request, ficha_id):
+        from django.conf import settings
 
-class DisolverGrupoScrumView(APIView):
-    """
-    DELETE /api/v1/fichas/grupos-scrum/<uuid:grupo_id>/disolver/
-    Regla 3.5: Si un grupo se separa o disuelve, el GrupoScrum SÍ se puede eliminar/disolver
-    para reasignar a los aprendices activos, pero los aprendices nunca se eliminan.
-    """
+        ficha = get_object_or_404(Ficha, id=ficha_id)
+        serializer = RegistrarAprendizIndividualSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-    permission_classes = [EsInstructorOAdmin]
+        try:
+            aprendiz, creado, correo_enviado = registrar_e_invitar_aprendiz_individual(
+                ficha=ficha,
+                nombre_completo=serializer.validated_data["nombre_completo"],
+                documento=serializer.validated_data["documento"],
+                correo=serializer.validated_data["correo"],
+                grupo_scrum=serializer.validated_data.get("grupo_scrum", ""),
+            )
+        except DjangoValidationError as exc:
+            return Response(
+                {"detalle": exc.messages[0]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-    def delete(self, request, grupo_id):
-        grupo = get_object_or_404(
-            GrupoScrum.objects.select_related("ficha").prefetch_related("miembros__aprendiz"),
-            id=grupo_id,
-        )
-        resultado = disolver_grupo_scrum(grupo)
+        if aprendiz.estado_cuenta == EstadoCuenta.PENDIENTE:
+            mensaje = (
+                f"Aprendiz {aprendiz.nombre_completo} registrado en la ficha {ficha.numero} "
+                f"e invitación enviada a {aprendiz.correo}."
+            )
+        else:
+            mensaje = (
+                f"Aprendiz {aprendiz.nombre_completo} vinculado a la ficha {ficha.numero} "
+                "(su cuenta ya estaba activa)."
+            )
+
+        payload = {
+            "mensaje": mensaje,
+            "aprendiz": UsuarioPerfilSerializer(aprendiz).data,
+            "creado": creado,
+            "correo_enviado": correo_enviado,
+        }
+        if settings.DEBUG and aprendiz.token_activacion:
+            payload["token_activacion_dev"] = aprendiz.token_activacion
+
         return Response(
-            {
-                "mensaje": (
-                    f"El grupo '{resultado['nombre_grupo']}' de la ficha {resultado['ficha_numero']} "
-                    "fue disuelto. Los aprendices continúan activos en la ficha para ser reasignados."
-                ),
-                "aprendices_liberados": resultado["aprendices_liberados"],
-            },
-            status=status.HTTP_200_OK,
+            payload,
+            status=status.HTTP_201_CREATED if creado else status.HTTP_200_OK,
         )
 
 
 class AprendicesSinProyectoFichaView(APIView):
     """
     GET /api/v1/fichas/<uuid:ficha_id>/alertas-sin-proyecto/
-    Regla 1.4: Lista los aprendices ACTIVOS o PENDIENTES (excluyendo SUSPENDIDOS) de la ficha
-    que aún no tienen Grupo Scrum o cuyo Grupo Scrum no tiene proyecto publicado,
-    además de alertar sobre Grupos Scrum que hayan quedado con menos de 2 aprendices activos.
+    Lista aprendices activos sin equipo o sin proyecto publicado, y equipos con < 2 activos.
     """
 
     permission_classes = [EsInstructorOAdmin]
@@ -378,15 +548,16 @@ class AprendicesSinProyectoFichaView(APIView):
         matriculas_no_suspendidas = (
             ficha.matriculas.filter(activa=True)
             .exclude(aprendiz__estado_cuenta=EstadoCuenta.SUSPENDIDO)
-            .select_related("aprendiz", "aprendiz__miembro_grupo_scrum__grupo")
+            .select_related("aprendiz")
+            .prefetch_related("aprendiz__membresias_grupo_scrum__grupo")
         )
 
         sin_grupo = []
         sin_proyecto = []
         for mat in matriculas_no_suspendidas:
             aprendiz = mat.aprendiz
-            miembro = getattr(aprendiz, "miembro_grupo_scrum", None)
-            if not miembro:
+            miembro = aprendiz.miembro_grupo_scrum
+            if not miembro or miembro.ficha_id != ficha.id:
                 sin_grupo.append(
                     {
                         "id": str(aprendiz.id),
@@ -411,11 +582,15 @@ class AprendicesSinProyectoFichaView(APIView):
                     )
 
         grupos_incompletos = []
-        for grupo in ficha.grupos_scrum.prefetch_related("miembros__aprendiz").all():
+        for grupo in (
+            ficha.grupos_scrum.exclude(estado=GrupoScrum.EstadoGrupo.ARCHIVADO)
+            .prefetch_related("miembros__aprendiz")
+            .all()
+        ):
             activos = [
                 m.aprendiz
                 for m in grupo.miembros.all()
-                if m.aprendiz.estado_cuenta != EstadoCuenta.SUSPENDIDO
+                if m.activo and m.aprendiz.estado_cuenta != EstadoCuenta.SUSPENDIDO
             ]
             if len(activos) < 2:
                 grupos_incompletos.append(

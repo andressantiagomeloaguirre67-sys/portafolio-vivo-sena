@@ -51,11 +51,13 @@ class UsuarioPerfilSerializer(serializers.ModelSerializer):
 
     def get_grupo_scrum(self, obj: Usuario):
         miembro = getattr(obj, "miembro_grupo_scrum", None)
-        if not miembro:
+        if not miembro or not miembro.activo:
             return None
         return {
             "id": str(miembro.grupo.id),
             "nombre_grupo": miembro.grupo.nombre_grupo,
+            "estado": miembro.grupo.estado,
+            "rol_scrum": miembro.rol_scrum,
             "ficha_id": str(miembro.grupo.ficha_id),
         }
 

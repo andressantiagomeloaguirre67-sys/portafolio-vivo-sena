@@ -58,6 +58,7 @@ class ProyectoFeedSerializer(serializers.ModelSerializer):
             "estado_procesamiento_zip",
             "ultimo_error_zip",
             "estado",
+            "estado_originalidad",
             "visibilidad",
             "url_ejecucion_sandbox",
             "total_comentarios",
@@ -72,8 +73,9 @@ class ProyectoFeedSerializer(serializers.ModelSerializer):
                 "nombre_completo": m.aprendiz.nombre_completo,
                 "documento": m.aprendiz.documento,
                 "estado_cuenta": m.aprendiz.estado_cuenta,
+                "rol_scrum": m.rol_scrum,
             }
-            for m in obj.grupo_scrum.miembros.select_related("aprendiz").all()
+            for m in obj.grupo_scrum.miembros.filter(activo=True).select_related("aprendiz")
         ]
 
     def get_total_comentarios(self, obj: Proyecto) -> int:

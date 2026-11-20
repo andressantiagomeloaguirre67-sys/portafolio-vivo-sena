@@ -1,131 +1,26 @@
 """
-Servicios de negocio del Módulo 2 (Fichas, Rotación Trimestral de Instructores y Grupos Scrum).
-Incluye lector de archivos Excel (.xlsx) y CSV (.csv) con detección exhaustiva de duplicados,
-rotación trimestral con reasignación de consultas pendientes y gestión de Grupos Scrum.
+Servicios de negocio del Módulo 2 (Fichas, Rotación Trimestral de Instructores y Equipos Scrum).
+- Creación directa de Equipos Scrum seleccionando aprendices activos sin equipo de la ficha.
+- Garantía transaccional + bloqueo de fila (`select_for_update`) + restricción única parcial en PostgreSQL
+  para que un aprendiz nunca pertenezca a más de 1 equipo activo en la misma ficha.
+- Regla No-Delete: mover integrantes cierra la membresía previa con `fecha_fin` y abre una nueva;
+  archivar un equipo cierra sus membresías activas y libera a los aprendices sin borrar datos.
 """
 
-import csv
-import io
 import secrets
-import shutil
-import unicodedata
-from collections import defaultdict
-from pathlib import Path
-from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.usuarios.models import EstadoCuenta, RolUsuario, Usuario
 from apps.usuarios.services import enviar_correo_activacion_aprendiz
 from .models import (
     AsignacionInstructor,
-    CargaMasiva,
     Ficha,
     GrupoScrum,
     Matricula,
     MiembroGrupoScrum,
 )
-
-
-def normalizar_nombre(nombre: str) -> str:
-    """Normaliza un nombre completo quitando tildes y espacios múltiples para detectar duplicados."""
-    texto = " ".join(str(nombre or "").strip().upper().split())
-    return "".join(
-        c
-        for c in unicodedata.normalize("NFD", texto)
-        if unicodedata.category(c) != "Mn"
-    )
-
-
-def extraer_registros_desde_archivo(archivo_subido) -> list[dict]:
-    """
-    Lee un archivo .csv o .xlsx subido por el instructor y extrae las filas
-    esperadas: `nombre_completo`, `documento`, `correo`, `grupo_scrum`.
-    """
-    nombre = (getattr(archivo_subido, "name", "") or "").lower()
-    contenido = archivo_subido.read()
-
-    if nombre.endswith(".xlsx"):
-        import openpyxl
-
-        wb = openpyxl.load_workbook(io.BytesIO(contenido), data_only=True)
-        ws = wb.active
-        filas = list(ws.iter_rows(values_only=True))
-        if not filas:
-            return []
-        encabezados = [
-            normalizar_nombre(str(col or "")).lower().replace(" ", "_")
-            for col in filas[0]
-        ]
-        registros = []
-        for fila in filas[1:]:
-            if not any(fila):
-                continue
-            item = dict(zip(encabezados, [str(v or "").strip() for v in fila]))
-            registros.append(
-                {
-                    "nombre_completo": item.get("nombre_completo")
-                    or item.get("nombre")
-                    or item.get("aprendiz")
-                    or "",
-                    "documento": item.get("documento")
-                    or item.get("numero_documento")
-                    or item.get("identificacion")
-                    or "",
-                    "correo": item.get("correo")
-                    or item.get("email")
-                    or item.get("correo_electronico")
-                    or "",
-                    "grupo_scrum": item.get("grupo_scrum")
-                    or item.get("grupo")
-                    or item.get("equipo_scrum")
-                    or "",
-                }
-            )
-        return registros
-
-    # Por defecto procesa como CSV (UTF-8 / Latin-1)
-    try:
-        texto = contenido.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        texto = contenido.decode("latin-1")
-
-    # Soportar delimitador coma (,) o punto y coma (;) típico de Excel en español
-    primera_linea = texto.splitlines()[0] if texto.splitlines() else ""
-    delimitador = ";" if primera_linea.count(";") > primera_linea.count(",") else ","
-
-    lector = csv.DictReader(io.StringIO(texto), delimiter=delimitador)
-    registros = []
-    for fila in lector:
-        fila_norm = {
-            normalizar_nombre(k).lower().replace(" ", "_"): str(v or "").strip()
-            for k, v in fila.items()
-            if k
-        }
-        if not any(fila_norm.values()):
-            continue
-        registros.append(
-            {
-                "nombre_completo": fila_norm.get("nombre_completo")
-                or fila_norm.get("nombre")
-                or fila_norm.get("aprendiz")
-                or "",
-                "documento": fila_norm.get("documento")
-                or fila_norm.get("numero_documento")
-                or fila_norm.get("identificacion")
-                or "",
-                "correo": fila_norm.get("correo")
-                or fila_norm.get("email")
-                or fila_norm.get("correo_electronico")
-                or "",
-                "grupo_scrum": fila_norm.get("grupo_scrum")
-                or fila_norm.get("grupo")
-                or fila_norm.get("equipo_scrum")
-                or "",
-            }
-        )
-    return registros
 
 
 @transaction.atomic
@@ -136,8 +31,6 @@ def rotar_instructor_ficha(
     Regla 2: Rotación de Instructor por Trimestre.
     - Desactiva al instructor anterior (conservando intacto su historial de asignaciones y comentarios).
     - Deja como único activo al nuevo instructor (`uq_un_solo_instructor_activo_por_ficha`).
-    - Reasigna automáticamente cualquier consulta escalada por el Agente IA que aún esté PENDIENTE
-      en esa ficha al nuevo instructor activo del trimestre.
     """
     AsignacionInstructor.objects.filter(ficha=ficha, activa=True).update(
         activa=False,
@@ -150,400 +43,576 @@ def rotar_instructor_ficha(
         activa=True,
     )
 
-    # Reasignar consultas técnicas PENDIENTES de los proyectos de la ficha al nuevo instructor activo
-    from apps.revisiones.models import ConsultaEscaladaInstructor
-
-    ConsultaEscaladaInstructor.objects.filter(
-        proyecto__ficha=ficha,
-        estado=ConsultaEscaladaInstructor.EstadoConsulta.PENDIENTE,
-    ).update(instructor_destino=nuevo_instructor)
-
     return asignacion
 
 
-def validar_registros_carga_masiva(registros: list[dict]) -> list[dict]:
-    """
-    Regla 3:
-    - Ningún aprendiz puede estar en más de un Grupo Scrum (verifica `documento` y `nombre_completo`).
-    - Ningún nombre completo o correo puede estar duplicado con distinto documento.
-    - Mínimo 2 aprendices por Grupo Scrum.
-    - Verifica conflictos contra la base de datos (ej. correo registrado en otro documento).
-    Retorna la lista de alertas encontradas. Si está vacía, el archivo es válido.
-    """
-    alertas = []
-    grupos_por_documento: dict[str, set[str]] = defaultdict(set)
-    grupos_por_nombre: dict[str, set[str]] = defaultdict(set)
-    documentos_por_nombre: dict[str, set[str]] = defaultdict(set)
-    documentos_por_correo: dict[str, set[str]] = defaultdict(set)
-    miembros_por_grupo: dict[str, set[str]] = defaultdict(set)
-
-    documentos_archivo: set[str] = set()
-    correos_archivo: dict[str, str] = {}
-
-    for idx, fila in enumerate(registros, start=1):
-        documento = str(fila.get("documento", "")).strip()
-        nombre_completo = str(fila.get("nombre_completo", "")).strip()
-        correo = str(fila.get("correo", "")).strip().lower()
-        grupo_scrum = " ".join(str(fila.get("grupo_scrum", "")).strip().split())
-
-        if not (documento and nombre_completo and correo and grupo_scrum):
-            alertas.append(
-                {
-                    "tipo": "FILA_INCOMPLETA",
-                    "fila": idx,
-                    "mensaje": (
-                        f"La fila {idx} no contiene todos los campos obligatorios "
-                        "(nombre_completo, documento, correo, grupo_scrum)."
-                    ),
-                }
-            )
-            continue
-
-        nombre_norm = normalizar_nombre(nombre_completo)
-        grupos_por_documento[documento].add(grupo_scrum)
-        grupos_por_nombre[nombre_norm].add(grupo_scrum)
-        documentos_por_nombre[nombre_norm].add(documento)
-        documentos_por_correo[correo].add(documento)
-        miembros_por_grupo[grupo_scrum].add(documento)
-
-        documentos_archivo.add(documento)
-        correos_archivo[correo] = documento
-
-    # 1. Detectar aprendices repetidos en varios grupos por documento
-    for doc, grupos in grupos_por_documento.items():
-        if len(grupos) > 1:
-            alertas.append(
-                {
-                    "tipo": "DOCUMENTO_EN_VARIOS_GRUPOS",
-                    "documento": doc,
-                    "grupos": sorted(grupos),
-                    "mensaje": (
-                        f"El documento '{doc}' aparece asignado en múltiples Grupos Scrum: "
-                        f"{', '.join(sorted(grupos))}."
-                    ),
-                }
-            )
-
-    # 2. Detectar aprendices repetidos en varios grupos por nombre_completo
-    for nombre_norm, grupos in grupos_por_nombre.items():
-        if len(grupos) > 1:
-            alertas.append(
-                {
-                    "tipo": "NOMBRE_EN_VARIOS_GRUPOS",
-                    "nombre_completo": nombre_norm,
-                    "grupos": sorted(grupos),
-                    "mensaje": (
-                        f"La persona '{nombre_norm}' aparece repetida en varios Grupos Scrum: "
-                        f"{', '.join(sorted(grupos))}."
-                    ),
-                }
-            )
-
-    # 3. Detectar mismo nombre_completo con diferentes números de documento
-    for nombre_norm, docs in documentos_por_nombre.items():
-        if len(docs) > 1 and len(grupos_por_nombre[nombre_norm]) == 1:
-            alertas.append(
-                {
-                    "tipo": "NOMBRE_CON_MULTIPLES_DOCUMENTOS",
-                    "nombre_completo": nombre_norm,
-                    "documentos": sorted(docs),
-                    "mensaje": (
-                        f"La persona '{nombre_norm}' aparece registrada con múltiples documentos "
-                        f"distintos: {', '.join(sorted(docs))}."
-                    ),
-                }
-            )
-
-    # 4. Detectar mismo correo asignado a múltiples documentos en el archivo
-    for correo, docs in documentos_por_correo.items():
-        if len(docs) > 1:
-            alertas.append(
-                {
-                    "tipo": "CORREO_REPETIDO_EN_ARCHIVO",
-                    "correo": correo,
-                    "documentos": sorted(docs),
-                    "mensaje": (
-                        f"El correo '{correo}' está asignado a múltiples documentos en el archivo: "
-                        f"{', '.join(sorted(docs))}."
-                    ),
-                }
-            )
-
-    # 5. Validar mínimo 2 aprendices por Grupo Scrum
-    for nombre_grupo, docs in miembros_por_grupo.items():
-        if len(docs) < 2:
-            alertas.append(
-                {
-                    "tipo": "GRUPO_MENOR_A_DOS_APRENDICES",
-                    "grupo_scrum": nombre_grupo,
-                    "cantidad_aprendices": len(docs),
-                    "mensaje": (
-                        f"El grupo '{nombre_grupo}' tiene {len(docs)} aprendiz(ces). "
-                        "Regla SENA: mínimo 2 aprendices por Grupo Scrum."
-                    ),
-                }
-            )
-
-    # 6. Verificar conflictos de integridad con usuarios ya existentes en PostgreSQL
-    if documentos_archivo:
-        usuarios_no_aprendices = Usuario.objects.filter(
-            documento__in=documentos_archivo
-        ).exclude(rol=RolUsuario.APRENDIZ)
-        for u in usuarios_no_aprendices:
-            alertas.append(
-                {
-                    "tipo": "DOCUMENTO_PERTENECE_A_INSTRUCTOR_O_ADMIN",
-                    "documento": u.documento,
-                    "rol_actual": u.rol,
-                    "mensaje": (
-                        f"El documento '{u.documento}' pertenece a una cuenta con rol {u.rol} "
-                        "y no puede cargarse como aprendiz."
-                    ),
-                }
-            )
-
-    if correos_archivo:
-        usuarios_con_correo = Usuario.objects.filter(
-            correo__in=list(correos_archivo.keys())
-        )
-        for u in usuarios_con_correo:
-            doc_esperado = correos_archivo.get(u.correo.lower())
-            if doc_esperado and u.documento != doc_esperado:
-                alertas.append(
-                    {
-                        "tipo": "CORREO_YA_REGISTRADO_OTRO_DOCUMENTO",
-                        "correo": u.correo,
-                        "documento_archivo": doc_esperado,
-                        "documento_existente": u.documento,
-                        "mensaje": (
-                            f"El correo '{u.correo}' ya pertenece a otro usuario registrado "
-                            f"con el documento '{u.documento}'."
-                        ),
-                    }
-                )
-
-    return alertas
-
-
 @transaction.atomic
-def procesar_carga_masiva_ficha(
+def registrar_e_invitar_aprendiz_individual(
     ficha: Ficha,
-    instructor: Usuario,
-    registros: list[dict],
-    nombre_archivo: str = "carga_manual.json",
-) -> tuple[CargaMasiva, list[dict]]:
+    nombre_completo: str,
+    documento: str,
+    correo: str,
+    grupo_scrum: str = "",
+) -> tuple[Usuario, bool, bool]:
     """
-    Valida y procesa la creación de Aprendices, Matrículas y Grupos Scrum para una Ficha.
-    Si detecta alertas de duplicados o grupos < 2 miembros, registra la alerta inmediata
-    sin aplicar cambios parciales.
-    Envía invitación por correo Gmail a los aprendices con cuenta PENDIENTE.
+    Registra (o vincula a la ficha) a un aprendiz individual y le envía el correo
+    de invitación/activación con su token por Gmail SMTP cuando su cuenta está PENDIENTE.
+    Si se indica `grupo_scrum`, lo asigna a un Grupo Scrum activo existente en la ficha.
     """
-    alertas = validar_registros_carga_masiva(registros)
-    if alertas:
-        carga = CargaMasiva.objects.create(
-            instructor=instructor,
-            ficha=ficha,
-            archivo=nombre_archivo,
-            estado="CON_ALERTAS",
-            alertas_duplicados=alertas,
+    doc_limpio = str(documento or "").strip()
+    nombre_limpio = " ".join(str(nombre_completo or "").strip().split())
+    correo_limpio = str(correo or "").strip().lower()
+    nombre_grupo = " ".join(str(grupo_scrum or "").strip().split())
+
+    if not (doc_limpio and nombre_limpio and correo_limpio):
+        raise ValidationError(
+            "El nombre completo, el número de documento y el correo electrónico son obligatorios."
         )
-        return carga, alertas
 
-    aprendices_creados_o_vinculados = []
-    documentos_procesados: set[str] = set()
-
-    for fila in registros:
-        documento = str(fila["documento"]).strip()
-        if documento in documentos_procesados:
-            continue
-        documentos_procesados.add(documento)
-
-        nombre_completo = " ".join(str(fila["nombre_completo"]).strip().split())
-        correo = str(fila["correo"]).strip().lower()
-        nombre_grupo = " ".join(str(fila["grupo_scrum"]).strip().split())
-
-        aprendiz, creado = Usuario.objects.get_or_create(
-            documento=documento,
-            defaults={
-                "nombre_completo": nombre_completo,
-                "correo": correo,
-                "rol": RolUsuario.APRENDIZ,
-                "estado_cuenta": EstadoCuenta.PENDIENTE,
-                "is_active": False,
-                "token_activacion": secrets.token_urlsafe(24),
-            },
+    usuario_por_doc = Usuario.objects.filter(documento=doc_limpio).first()
+    if usuario_por_doc and usuario_por_doc.rol != RolUsuario.APRENDIZ:
+        raise ValidationError(
+            f"El documento '{doc_limpio}' ya pertenece a una cuenta con rol {usuario_por_doc.rol}."
         )
-        if creado:
-            aprendiz.set_unusable_password()
-            aprendiz.save(update_fields=["password"])
 
-        # Enviar correo de invitación por Gmail si está pendiente de activación
-        if aprendiz.estado_cuenta == EstadoCuenta.PENDIENTE:
-            enviar_correo_activacion_aprendiz(
-                aprendiz=aprendiz,
-                ficha_numero=ficha.numero,
-                nombre_grupo=nombre_grupo,
+    usuario_por_correo = Usuario.objects.filter(correo__iexact=correo_limpio).first()
+    if usuario_por_correo and usuario_por_correo.documento != doc_limpio:
+        raise ValidationError(
+            f"El correo '{correo_limpio}' ya está registrado con otro documento ({usuario_por_correo.documento})."
+        )
+
+    grupo_obj = None
+    if nombre_grupo:
+        grupo_obj = (
+            GrupoScrum.objects.filter(ficha=ficha, nombre_grupo__iexact=nombre_grupo)
+            .exclude(estado=GrupoScrum.EstadoGrupo.ARCHIVADO)
+            .first()
+        )
+        if not grupo_obj:
+            raise ValidationError(
+                f"El equipo '{nombre_grupo}' no existe o está archivado en la ficha {ficha.numero}."
             )
 
-        # Matricular en la ficha activa (1 matrícula activa por aprendiz)
-        Matricula.objects.filter(aprendiz=aprendiz, activa=True).exclude(
-            ficha=ficha
-        ).update(activa=False)
-        Matricula.objects.update_or_create(
-            aprendiz=aprendiz,
-            ficha=ficha,
-            defaults={"activa": True},
+    if usuario_por_doc:
+        aprendiz = usuario_por_doc
+        creado = False
+        if aprendiz.estado_cuenta == EstadoCuenta.SUSPENDIDO:
+            raise ValidationError(
+                f"El aprendiz {aprendiz.nombre_completo} ({aprendiz.documento}) está SUSPENDIDO. "
+                "Debes reactivarlo desde la sección Aprendices (Regla No-Delete)."
+            )
+    else:
+        aprendiz = Usuario.objects.create(
+            documento=doc_limpio,
+            nombre_completo=nombre_limpio,
+            correo=correo_limpio,
+            rol=RolUsuario.APRENDIZ,
+            estado_cuenta=EstadoCuenta.PENDIENTE,
+            is_active=False,
+            token_activacion=secrets.token_urlsafe(24),
         )
+        aprendiz.set_unusable_password()
+        aprendiz.save(update_fields=["password"])
+        creado = True
 
-        # Crear u obtener el Grupo Scrum en la ficha
-        grupo, _ = GrupoScrum.objects.get_or_create(
-            ficha=ficha,
-            nombre_grupo=nombre_grupo,
-        )
-
-        # Asignar miembro al Grupo Scrum (1 aprendiz = máximo 1 grupo)
-        MiembroGrupoScrum.objects.update_or_create(
-            aprendiz=aprendiz,
-            defaults={"grupo": grupo},
-        )
-
-        aprendices_creados_o_vinculados.append(
-            {
-                "id": str(aprendiz.id),
-                "documento": aprendiz.documento,
-                "nombre_completo": aprendiz.nombre_completo,
-                "correo": aprendiz.correo,
-                "estado_cuenta": aprendiz.estado_cuenta,
-                "grupo_scrum": grupo.nombre_grupo,
-                "token_activacion": aprendiz.token_activacion,
-            }
-        )
-
-    carga = CargaMasiva.objects.create(
-        instructor=instructor,
+    # Matricular en la ficha activa (1 matrícula activa por aprendiz)
+    Matricula.objects.filter(aprendiz=aprendiz, activa=True).exclude(
+        ficha=ficha
+    ).update(activa=False)
+    Matricula.objects.update_or_create(
+        aprendiz=aprendiz,
         ficha=ficha,
-        archivo=nombre_archivo,
-        estado="COMPLETADA",
-        alertas_duplicados=[],
+        defaults={"activa": True},
     )
-    return carga, aprendices_creados_o_vinculados
+
+    if grupo_obj:
+        agregar_integrante_a_equipo(
+            grupo=grupo_obj,
+            aprendiz_id=aprendiz.id,
+            rol_scrum=MiembroGrupoScrum.RolScrum.DEVELOPER,
+        )
+
+    correo_enviado = False
+    if aprendiz.estado_cuenta == EstadoCuenta.PENDIENTE:
+        correo_enviado = enviar_correo_activacion_aprendiz(
+            aprendiz=aprendiz,
+            ficha_numero=ficha.numero,
+            nombre_grupo=grupo_obj.nombre_grupo if grupo_obj else "",
+        )
+
+    return aprendiz, creado, correo_enviado
+
+
+def _validar_roles_scrum_lista(integrantes_normalizados: list[tuple[Usuario, str]]):
+    sm = [u for u, rol in integrantes_normalizados if rol == MiembroGrupoScrum.RolScrum.SCRUM_MASTER]
+    po = [u for u, rol in integrantes_normalizados if rol == MiembroGrupoScrum.RolScrum.PRODUCT_OWNER]
+    if len(sm) > 1:
+        raise ValidationError("Solo puede haber un Scrum Master por equipo.")
+    if len(po) > 1:
+        raise ValidationError("Solo puede haber un Product Owner por equipo.")
 
 
 @transaction.atomic
-def disolver_grupo_scrum(grupo: GrupoScrum) -> dict:
+def crear_equipo_scrum(
+    ficha: Ficha,
+    nombre_grupo: str,
+    proyecto_titulo: str,
+    proyecto_descripcion: str,
+    integrantes: list[dict],
+    estado: str = GrupoScrum.EstadoGrupo.BORRADOR,
+) -> GrupoScrum:
     """
-    Regla 3.5: Si un grupo se separa o disuelve, el GrupoScrum SÍ se puede eliminar/disolver
-    para reasignar a los aprendices activos, pero los aprendices jamás se eliminan.
-    Limpia además el directorio del Sandbox si el grupo tenía un proyecto alojado.
+    Crea un Equipo Scrum junto con su proyecto asociado y asigna sus integrantes activos
+    dentro de una sola transacción con bloqueo de fila (`select_for_update`) sobre los
+    aprendices involucrados para prevenir condiciones de carrera.
     """
-    nombre_grupo = grupo.nombre_grupo
-    ficha_numero = grupo.ficha.numero
+    from apps.proyectos.models import Proyecto
+
+    nombre_limpio = " ".join(str(nombre_grupo or "").strip().split())
+    titulo_limpio = " ".join(str(proyecto_titulo or "").strip().split())
+    desc_limpia = str(proyecto_descripcion or "").strip()
+    estado_limpio = (estado or GrupoScrum.EstadoGrupo.BORRADOR).strip().upper()
+
+    if not nombre_limpio:
+        raise ValidationError("El nombre del equipo es obligatorio.")
+    if not titulo_limpio:
+        raise ValidationError("El nombre del proyecto es obligatorio.")
+    if len(desc_limpia) < 10:
+        raise ValidationError("La descripción corta del proyecto debe tener al menos 10 caracteres.")
+    if estado_limpio not in (
+        GrupoScrum.EstadoGrupo.BORRADOR,
+        GrupoScrum.EstadoGrupo.PUBLICADO,
+    ):
+        raise ValidationError("El estado inicial debe ser BORRADOR o PUBLICADO.")
+
+    # Verificar nombre único dentro de la ficha (entre equipos no archivados)
+    if (
+        GrupoScrum.objects.filter(ficha=ficha, nombre_grupo__iexact=nombre_limpio)
+        .exclude(estado=GrupoScrum.EstadoGrupo.ARCHIVADO)
+        .exists()
+    ):
+        raise ValidationError(
+            f"Ya existe un equipo llamado '{nombre_limpio}' en la ficha {ficha.numero}."
+        )
+
+    if Proyecto.objects.filter(titulo__iexact=titulo_limpio).exists():
+        raise ValidationError(
+            f"Ya existe un proyecto registrado con el título '{titulo_limpio}'. Usa un título único."
+        )
+
+    # Normalizar y deduplicar integrantes solicitados
+    roles_por_id: dict[str, str] = {}
+    roles_validos = {c[0] for c in MiembroGrupoScrum.RolScrum.choices}
+    for item in integrantes or []:
+        apr_id = str(item.get("aprendiz_id") or "").strip()
+        if not apr_id:
+            continue
+        rol = str(item.get("rol_scrum") or MiembroGrupoScrum.RolScrum.DEVELOPER).strip().upper()
+        if rol not in roles_validos:
+            raise ValidationError(f"Rol Scrum inválido: {rol}.")
+        roles_por_id[apr_id] = rol
+
+    if len(roles_por_id) < 2:
+        raise ValidationError(
+            "Regla SENA: Todo equipo Scrum debe tener mínimo 2 aprendices activos."
+        )
+
+    # Bloquear filas de aprendices en orden determinista para evitar deadlocks y condiciones de carrera
+    ids_ordenados = sorted(roles_por_id.keys())
+    aprendices_bloqueados = list(
+        Usuario.objects.select_for_update()
+        .filter(id__in=ids_ordenados, rol=RolUsuario.APRENDIZ)
+        .order_by("id")
+    )
+    if len(aprendices_bloqueados) != len(ids_ordenados):
+        raise ValidationError("Uno o más aprendices seleccionados no existen.")
+
+    integrantes_norm: list[tuple[Usuario, str]] = []
+    for apr in aprendices_bloqueados:
+        if apr.estado_cuenta == EstadoCuenta.SUSPENDIDO:
+            raise ValidationError(
+                f"El aprendiz {apr.nombre_completo} está suspendido y no puede integrarse a un equipo."
+            )
+        if not Matricula.objects.filter(aprendiz=apr, ficha=ficha, activa=True).exists():
+            raise ValidationError(
+                f"El aprendiz {apr.nombre_completo} no pertenece a la ficha {ficha.numero}."
+            )
+        membresia_activa = (
+            MiembroGrupoScrum.objects.select_related("grupo")
+            .filter(ficha=ficha, aprendiz=apr, activo=True)
+            .first()
+        )
+        if membresia_activa:
+            raise ValidationError(
+                f"Este aprendiz ({apr.nombre_completo}) ya fue asignado al {membresia_activa.grupo.nombre_grupo}."
+            )
+        integrantes_norm.append((apr, roles_por_id[str(apr.id)]))
+
+    _validar_roles_scrum_lista(integrantes_norm)
+
+    try:
+        from apps.asistente.services import (
+            adquirir_bloqueo_originalidad,
+            evaluar_originalidad_idea,
+        )
+
+        adquirir_bloqueo_originalidad()
+
+        grupo = GrupoScrum.objects.create(
+            ficha=ficha,
+            nombre_grupo=nombre_limpio,
+            estado=estado_limpio,
+        )
+
+        evaluacion_orig = evaluar_originalidad_idea(
+            titulo_propuesto=titulo_limpio,
+            idea_propuesta=desc_limpia,
+            excluir_grupo_id=grupo.id,
+        )
+        es_original = evaluacion_orig["veredicto"] == "ORIGINAL"
+
+        estado_proyecto = (
+            Proyecto.EstadoProyecto.PUBLICADO
+            if estado_limpio == GrupoScrum.EstadoGrupo.PUBLICADO
+            else Proyecto.EstadoProyecto.DEFINIENDO_IDEA
+        )
+        visibilidad_proyecto = (
+            Proyecto.Visibilidad.PUBLICO
+            if estado_limpio == GrupoScrum.EstadoGrupo.PUBLICADO
+            else Proyecto.Visibilidad.FICHA
+        )
+        Proyecto.objects.create(
+            ficha=ficha,
+            grupo_scrum=grupo,
+            titulo=titulo_limpio,
+            introduccion=desc_limpia,
+            embedding_idea=evaluacion_orig["embedding"] if es_original else None,
+            estado_originalidad=(
+                Proyecto.EstadoOriginalidad.ORIGINAL
+                if es_original
+                else Proyecto.EstadoOriginalidad.EN_DIFERENCIACION
+            ),
+            estado=estado_proyecto,
+            visibilidad=visibilidad_proyecto,
+        )
+
+        for apr, rol in integrantes_norm:
+            MiembroGrupoScrum.objects.create(
+                ficha=ficha,
+                grupo=grupo,
+                aprendiz=apr,
+                rol_scrum=rol,
+                activo=True,
+            )
+    except IntegrityError as exc:
+        # Respaldo de segunda línea si PostgreSQL dispara la restricción única parcial
+        detalle_str = str(exc)
+        if "uq_un_grupo_activo_por_ficha_y_aprendiz" in detalle_str:
+            raise ValidationError(
+                "Uno de los aprendices ya fue asignado a otro equipo en esta ficha de forma simultánea."
+            )
+        if "uq_nombre_grupo_activo_por_ficha" in detalle_str:
+            raise ValidationError(
+                f"Ya existe un equipo llamado '{nombre_limpio}' en esta ficha."
+            )
+        raise ValidationError("No se pudo crear el equipo por un conflicto de unicidad en base de datos.")
+
+    return grupo
+
+
+@transaction.atomic
+def agregar_integrante_a_equipo(
+    grupo: GrupoScrum,
+    aprendiz_id,
+    rol_scrum: str = MiembroGrupoScrum.RolScrum.DEVELOPER,
+) -> MiembroGrupoScrum:
+    """
+    Agrega un aprendiz activo sin equipo de la misma ficha a `grupo`,
+    con bloqueo transaccional sobre el aprendiz y el equipo.
+    """
+    grupo = GrupoScrum.objects.select_for_update().select_related("ficha").get(id=grupo.id)
+    if grupo.estado == GrupoScrum.EstadoGrupo.ARCHIVADO:
+        raise ValidationError("No se pueden agregar integrantes a un equipo archivado.")
+
+    rol = (rol_scrum or MiembroGrupoScrum.RolScrum.DEVELOPER).strip().upper()
+    if rol not in {c[0] for c in MiembroGrupoScrum.RolScrum.choices}:
+        raise ValidationError(f"Rol Scrum inválido: {rol}.")
+
+    aprendiz = (
+        Usuario.objects.select_for_update()
+        .filter(id=aprendiz_id, rol=RolUsuario.APRENDIZ)
+        .first()
+    )
+    if not aprendiz:
+        raise ValidationError("No se encontró el aprendiz seleccionado.")
+    if aprendiz.estado_cuenta == EstadoCuenta.SUSPENDIDO:
+        raise ValidationError(
+            f"El aprendiz {aprendiz.nombre_completo} está suspendido y no puede asignarse a un equipo."
+        )
+    if not Matricula.objects.filter(aprendiz=aprendiz, ficha=grupo.ficha, activa=True).exists():
+        raise ValidationError(
+            f"El aprendiz {aprendiz.nombre_completo} no tiene matrícula activa en la ficha {grupo.ficha.numero}."
+        )
+
+    membresia_existente = (
+        MiembroGrupoScrum.objects.select_related("grupo")
+        .filter(ficha=grupo.ficha, aprendiz=aprendiz, activo=True)
+        .first()
+    )
+    if membresia_existente:
+        raise ValidationError(
+            f"Este aprendiz ya fue asignado al {membresia_existente.grupo.nombre_grupo}."
+        )
+
+    if rol in (
+        MiembroGrupoScrum.RolScrum.SCRUM_MASTER,
+        MiembroGrupoScrum.RolScrum.PRODUCT_OWNER,
+    ):
+        ocupado = MiembroGrupoScrum.objects.filter(
+            grupo=grupo, activo=True, rol_scrum=rol
+        ).exists()
+        if ocupado:
+            etiqueta = "Scrum Master" if rol == MiembroGrupoScrum.RolScrum.SCRUM_MASTER else "Product Owner"
+            raise ValidationError(f"El equipo '{grupo.nombre_grupo}' ya tiene un {etiqueta} asignado.")
+
+    try:
+        return MiembroGrupoScrum.objects.create(
+            ficha=grupo.ficha,
+            grupo=grupo,
+            aprendiz=aprendiz,
+            rol_scrum=rol,
+            activo=True,
+        )
+    except IntegrityError:
+        membresia = (
+            MiembroGrupoScrum.objects.select_related("grupo")
+            .filter(ficha=grupo.ficha, aprendiz=aprendiz, activo=True)
+            .first()
+        )
+        if membresia:
+            raise ValidationError(
+                f"Este aprendiz ya fue asignado al {membresia.grupo.nombre_grupo}."
+            )
+        raise ValidationError("Conflicto de unicidad al asignar el integrante al equipo.")
+
+
+@transaction.atomic
+def mover_integrante_de_equipo(
+    grupo_origen: GrupoScrum,
+    aprendiz_id,
+    grupo_destino_id,
+    rol_scrum: str = MiembroGrupoScrum.RolScrum.DEVELOPER,
+) -> MiembroGrupoScrum:
+    """
+    Mueve un aprendiz desde `grupo_origen` hacia `grupo_destino` dentro de la misma ficha:
+    - Cierra la membresía anterior (`activo=False`, `fecha_fin=now`, sin borrar).
+    - Abre una nueva membresía activa en el equipo destino (nunca dos activas a la vez).
+    - Bloquea la operación si `grupo_origen` quedaría con menos de 2 integrantes activos.
+    """
+    if str(grupo_origen.id) == str(grupo_destino_id):
+        raise ValidationError("El equipo destino debe ser diferente al equipo actual.")
+
+    ids_grupos = sorted([str(grupo_origen.id), str(grupo_destino_id)])
+    grupos_bloqueados = {
+        str(g.id): g
+        for g in GrupoScrum.objects.select_for_update()
+        .select_related("ficha")
+        .filter(id__in=ids_grupos)
+        .order_by("id")
+    }
+    origen = grupos_bloqueados.get(str(grupo_origen.id))
+    destino = grupos_bloqueados.get(str(grupo_destino_id))
+    if not origen or not destino:
+        raise ValidationError("No se encontró el equipo origen o el equipo destino.")
+    if origen.ficha_id != destino.ficha_id:
+        raise ValidationError("Solo puedes mover aprendices entre equipos de la misma ficha.")
+    if origen.estado == GrupoScrum.EstadoGrupo.ARCHIVADO:
+        raise ValidationError("No puedes mover integrantes desde un equipo archivado.")
+    if destino.estado == GrupoScrum.EstadoGrupo.ARCHIVADO:
+        raise ValidationError("No puedes mover integrantes hacia un equipo archivado.")
+
+    aprendiz = (
+        Usuario.objects.select_for_update()
+        .filter(id=aprendiz_id, rol=RolUsuario.APRENDIZ)
+        .first()
+    )
+    if not aprendiz:
+        raise ValidationError("No se encontró el aprendiz especificado.")
+
+    membresia_actual = MiembroGrupoScrum.objects.filter(
+        grupo=origen, aprendiz=aprendiz, activo=True
+    ).first()
+    if not membresia_actual:
+        raise ValidationError(
+            f"{aprendiz.nombre_completo} no tiene una membresía activa en '{origen.nombre_grupo}'."
+        )
+
+    activos_origen = (
+        MiembroGrupoScrum.objects.filter(grupo=origen, activo=True)
+        .exclude(aprendiz__estado_cuenta=EstadoCuenta.SUSPENDIDO)
+        .count()
+    )
+    if activos_origen - 1 < 2:
+        raise ValidationError(
+            f"No se puede mover a {aprendiz.nombre_completo}: '{origen.nombre_grupo}' quedaría con "
+            f"{activos_origen - 1} integrante(s) activo(s) y el mínimo SENA es 2."
+        )
+
+    rol = (rol_scrum or MiembroGrupoScrum.RolScrum.DEVELOPER).strip().upper()
+    if rol not in {c[0] for c in MiembroGrupoScrum.RolScrum.choices}:
+        raise ValidationError(f"Rol Scrum inválido: {rol}.")
+    if rol in (
+        MiembroGrupoScrum.RolScrum.SCRUM_MASTER,
+        MiembroGrupoScrum.RolScrum.PRODUCT_OWNER,
+    ):
+        if MiembroGrupoScrum.objects.filter(grupo=destino, activo=True, rol_scrum=rol).exists():
+            etiqueta = "Scrum Master" if rol == MiembroGrupoScrum.RolScrum.SCRUM_MASTER else "Product Owner"
+            raise ValidationError(
+                f"El equipo '{destino.nombre_grupo}' ya tiene un {etiqueta} asignado."
+            )
+
+    ahora = timezone.now()
+    membresia_actual.activo = False
+    membresia_actual.fecha_fin = ahora
+    membresia_actual.save(update_fields=["activo", "fecha_fin"])
+
+    return MiembroGrupoScrum.objects.create(
+        ficha=destino.ficha,
+        grupo=destino,
+        aprendiz=aprendiz,
+        rol_scrum=rol,
+        activo=True,
+    )
+
+
+@transaction.atomic
+def cambiar_rol_integrante_equipo(
+    grupo: GrupoScrum,
+    aprendiz_id,
+    rol_scrum: str,
+) -> MiembroGrupoScrum:
+    """Actualiza el rol Scrum de un integrante activo garantizando un solo SM y un solo PO."""
+    grupo = GrupoScrum.objects.select_for_update().get(id=grupo.id)
+    if grupo.estado == GrupoScrum.EstadoGrupo.ARCHIVADO:
+        raise ValidationError("No se pueden editar roles en un equipo archivado.")
+
+    rol = (rol_scrum or "").strip().upper()
+    if rol not in {c[0] for c in MiembroGrupoScrum.RolScrum.choices}:
+        raise ValidationError(f"Rol Scrum inválido: {rol}.")
+
+    membresia = MiembroGrupoScrum.objects.filter(
+        grupo=grupo, aprendiz_id=aprendiz_id, activo=True
+    ).first()
+    if not membresia:
+        raise ValidationError("El aprendiz no pertenece activamente a este equipo.")
+
+    if rol in (
+        MiembroGrupoScrum.RolScrum.SCRUM_MASTER,
+        MiembroGrupoScrum.RolScrum.PRODUCT_OWNER,
+    ):
+        ocupado = (
+            MiembroGrupoScrum.objects.filter(grupo=grupo, activo=True, rol_scrum=rol)
+            .exclude(id=membresia.id)
+            .exists()
+        )
+        if ocupado:
+            etiqueta = "Scrum Master" if rol == MiembroGrupoScrum.RolScrum.SCRUM_MASTER else "Product Owner"
+            raise ValidationError(f"Este equipo ya tiene otro integrante como {etiqueta}.")
+
+    membresia.rol_scrum = rol
+    membresia.save(update_fields=["rol_scrum"])
+    return membresia
+
+
+@transaction.atomic
+def cambiar_estado_equipo_scrum(grupo: GrupoScrum, nuevo_estado: str) -> GrupoScrum:
+    """Alterna el estado de un equipo entre BORRADOR y PUBLICADO y sincroniza su proyecto."""
+    from apps.proyectos.models import Proyecto
+
+    grupo = GrupoScrum.objects.select_for_update().get(id=grupo.id)
+    if grupo.estado == GrupoScrum.EstadoGrupo.ARCHIVADO:
+        raise ValidationError("Un equipo archivado no puede volver a publicarse directamente.")
+
+    estado_limpio = (nuevo_estado or "").strip().upper()
+    if estado_limpio not in (
+        GrupoScrum.EstadoGrupo.BORRADOR,
+        GrupoScrum.EstadoGrupo.PUBLICADO,
+    ):
+        raise ValidationError("Solo puedes cambiar el estado a BORRADOR o PUBLICADO.")
+
+    if estado_limpio == GrupoScrum.EstadoGrupo.PUBLICADO:
+        activos = (
+            MiembroGrupoScrum.objects.filter(grupo=grupo, activo=True)
+            .exclude(aprendiz__estado_cuenta=EstadoCuenta.SUSPENDIDO)
+            .count()
+        )
+        if activos < 2:
+            raise ValidationError(
+                "No se puede publicar el equipo porque tiene menos de 2 integrantes activos."
+            )
+
+    grupo.estado = estado_limpio
+    grupo.save(update_fields=["estado"])
+
+    proyecto = getattr(grupo, "proyecto", None)
+    if proyecto:
+        if estado_limpio == GrupoScrum.EstadoGrupo.PUBLICADO:
+            proyecto.estado = Proyecto.EstadoProyecto.PUBLICADO
+            proyecto.visibilidad = Proyecto.Visibilidad.PUBLICO
+        else:
+            proyecto.estado = Proyecto.EstadoProyecto.DEFINIENDO_IDEA
+            proyecto.visibilidad = Proyecto.Visibilidad.FICHA
+        proyecto.save(update_fields=["estado", "visibilidad"])
+
+    return grupo
+
+
+@transaction.atomic
+def archivar_equipo_scrum(grupo: GrupoScrum) -> dict:
+    """
+    Regla No-Delete: archiva el equipo en lugar de eliminarlo físicamente.
+    - Marca `grupo.estado = ARCHIVADO` y `archivado_en = now`.
+    - Cierra todas las membresías activas (`activo = False`, `fecha_fin = now`),
+      liberando a los aprendices para que puedan integrarse a otro equipo de la ficha.
+    - Marca el proyecto asociado como retirado por instructor sin borrar el registro ni su bitácora.
+    """
+    from apps.proyectos.models import Proyecto
+
+    grupo = GrupoScrum.objects.select_for_update().select_related("ficha").get(id=grupo.id)
+    if grupo.estado == GrupoScrum.EstadoGrupo.ARCHIVADO:
+        raise ValidationError("Este equipo ya se encuentra archivado.")
+
+    ahora = timezone.now()
+    membresias_activas = list(
+        MiembroGrupoScrum.objects.select_related("aprendiz").filter(
+            grupo=grupo, activo=True
+        )
+    )
     aprendices_liberados = [
         {
             "id": str(m.aprendiz.id),
             "documento": m.aprendiz.documento,
             "nombre_completo": m.aprendiz.nombre_completo,
         }
-        for m in grupo.miembros.select_related("aprendiz").all()
+        for m in membresias_activas
     ]
+
+    MiembroGrupoScrum.objects.filter(grupo=grupo, activo=True).update(
+        activo=False, fecha_fin=ahora
+    )
+
+    grupo.estado = GrupoScrum.EstadoGrupo.ARCHIVADO
+    grupo.archivado_en = ahora
+    grupo.save(update_fields=["estado", "archivado_en"])
 
     proyecto = getattr(grupo, "proyecto", None)
     if proyecto:
-        sandbox_dir = Path(settings.BASE_DIR) / "media" / "sandbox_projects" / str(proyecto.id)
-        if sandbox_dir.exists():
-            shutil.rmtree(sandbox_dir)
+        proyecto.estado = Proyecto.EstadoProyecto.RETIRADO_INSTRUCTOR
+        proyecto.save(update_fields=["estado"])
 
-    grupo.delete()
     return {
-        "nombre_grupo": nombre_grupo,
-        "ficha_numero": ficha_numero,
+        "grupo_id": str(grupo.id),
+        "nombre_grupo": grupo.nombre_grupo,
+        "ficha_numero": grupo.ficha.numero,
         "aprendices_liberados": aprendices_liberados,
     }
-
-
-@transaction.atomic
-def conformar_o_reasignar_grupo_scrum(
-    ficha: Ficha,
-    nombre_grupo: str,
-    documentos_aprendices: list[str],
-) -> GrupoScrum:
-    """
-    Permite al instructor conformar un nuevo Grupo Scrum o reasignar aprendices activos
-    de la ficha a un grupo, garantizando:
-    - Todos los aprendices pertenecen a la ficha y no están SUSPENDIDOS.
-    - El grupo resultante tiene mínimo 2 aprendices activos (Regla 3.2).
-    - Ningún grupo origen queda con menos de 2 aprendices activos tras la reasignación.
-    """
-    nombre_limpio = " ".join(str(nombre_grupo or "").strip().split())
-    if not nombre_limpio:
-        raise ValidationError("El nombre del Grupo Scrum es obligatorio.")
-
-    docs_unicos = list(dict.fromkeys(str(d).strip() for d in documentos_aprendices if str(d).strip()))
-    if len(docs_unicos) < 2:
-        raise ValidationError(
-            "Regla SENA: Todo Grupo Scrum debe conformarse con mínimo 2 aprendices."
-        )
-
-    aprendices = list(
-        Usuario.objects.filter(
-            documento__in=docs_unicos,
-            rol=RolUsuario.APRENDIZ,
-        )
-    )
-    if len(aprendices) != len(docs_unicos):
-        encontrados = {a.documento for a in aprendices}
-        faltantes = [d for d in docs_unicos if d not in encontrados]
-        raise ValidationError(
-            f"No se encontraron aprendices registrados con los documentos: {', '.join(faltantes)}."
-        )
-
-    for apr in aprendices:
-        if apr.estado_cuenta == EstadoCuenta.SUSPENDIDO:
-            raise ValidationError(
-                f"El aprendiz {apr.nombre_completo} ({apr.documento}) está SUSPENDIDO y no puede asignarse a un Grupo Scrum."
-            )
-        if not Matricula.objects.filter(aprendiz=apr, ficha=ficha, activa=True).exists():
-            raise ValidationError(
-                f"El aprendiz {apr.nombre_completo} ({apr.documento}) no tiene matrícula activa en la ficha {ficha.numero}."
-            )
-
-    grupo, _ = GrupoScrum.objects.get_or_create(
-        ficha=ficha,
-        nombre_grupo=nombre_limpio,
-    )
-
-    grupos_origen_afectados: set[GrupoScrum] = set()
-    for apr in aprendices:
-        miembro_actual = getattr(apr, "miembro_grupo_scrum", None)
-        if miembro_actual and miembro_actual.grupo_id != grupo.id:
-            grupos_origen_afectados.add(miembro_actual.grupo)
-        MiembroGrupoScrum.objects.update_or_create(
-            aprendiz=apr,
-            defaults={"grupo": grupo},
-        )
-
-    # Verificar que ningún grupo origen haya quedado con 1 solo aprendiz activo
-    for grupo_origen in grupos_origen_afectados:
-        restantes = (
-            grupo_origen.miembros.exclude(
-                aprendiz__estado_cuenta=EstadoCuenta.SUSPENDIDO
-            ).count()
-        )
-        if 0 < restantes < 2:
-            raise ValidationError(
-                f"Reasignación rechazada: El grupo origen '{grupo_origen.nombre_grupo}' quedaría con "
-                f"{restantes} aprendiz activo (mínimo requerido: 2). Disuelva ese grupo primero o reasigne a todos sus miembros."
-            )
-
-    # Verificar que el grupo destino tenga al menos 2 miembros no suspendidos
-    total_destino = (
-        grupo.miembros.exclude(
-            aprendiz__estado_cuenta=EstadoCuenta.SUSPENDIDO
-        ).count()
-    )
-    if total_destino < 2:
-        raise ValidationError(
-            f"El grupo '{grupo.nombre_grupo}' debe tener mínimo 2 aprendices activos."
-        )
-
-    return grupo

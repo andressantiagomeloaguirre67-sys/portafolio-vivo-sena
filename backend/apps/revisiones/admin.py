@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import ComentarioRevision, ConsultaEscaladaInstructor, Reporte
+from .models import ComentarioRevision, Reporte
 
 
 @admin.register(ComentarioRevision)
@@ -13,21 +13,6 @@ class ComentarioRevisionAdmin(admin.ModelAdmin):
         "corregido_en_entrega",
     )
     list_filter = ("numero_entrega_revisada",)
-
-
-@admin.register(ConsultaEscaladaInstructor)
-class ConsultaEscaladaInstructorAdmin(admin.ModelAdmin):
-    list_display = (
-        "ficha",
-        "grupo_scrum",
-        "proyecto",
-        "aprendiz",
-        "instructor_destino",
-        "motivo_escalado",
-        "estado",
-        "creado_en",
-    )
-    list_filter = ("estado", "ficha")
 
 
 @admin.register(Reporte)

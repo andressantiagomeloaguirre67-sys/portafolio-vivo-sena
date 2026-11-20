@@ -30,13 +30,14 @@ class MatriculaAdmin(admin.ModelAdmin):
 
 @admin.register(GrupoScrum)
 class GrupoScrumAdmin(admin.ModelAdmin):
-    list_display = ("nombre_grupo", "ficha", "creado_en")
-    list_filter = ("ficha",)
+    list_display = ("nombre_grupo", "ficha", "estado", "creado_en", "archivado_en")
+    list_filter = ("ficha", "estado")
 
 
 @admin.register(MiembroGrupoScrum)
 class MiembroGrupoScrumAdmin(admin.ModelAdmin):
-    list_display = ("aprendiz", "grupo", "fecha_ingreso")
+    list_display = ("aprendiz", "grupo", "ficha", "rol_scrum", "activo", "fecha_ingreso", "fecha_fin")
+    list_filter = ("activo", "rol_scrum", "ficha")
 
 
 @admin.register(CargaMasiva)

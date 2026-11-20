@@ -1,10 +1,11 @@
 """
-Módulo 4: Revisiones, Consultas Escaladas y Reportes (apps/revisiones/models.py)
+Módulo 4: Revisiones, Comentarios y Reportes (apps/revisiones/models.py)
 Reglas de Negocio:
 - `ComentarioRevision`: Mantiene el historial completo de comentarios del instructor y las
   respuestas del Grupo Scrum sin guardar repositorios viejos en disco.
-- `ConsultaEscaladaInstructor`: Cuando el aprendiz pregunta por diagramas, lógica o alcance al Agente,
-  este no inventa respuestas y escala la consulta directamente al Instructor activo de la ficha.
+- `ConsultaEscaladaInstructor`: Modelo histórico de solo archivo (regla No-Delete). El
+  escalamiento de Aegis al instructor fue eliminado; los registros previos se conservan
+  marcados como `archivada_por_cambio_de_politica` y no se muestran ni se cuentan.
 - `Reporte`: Permite reportar proyectos para moderación y retirarlos si incumplen las normas SENA.
 """
 
@@ -62,14 +63,18 @@ class ComentarioRevision(models.Model):
 
 class ConsultaEscaladaInstructor(models.Model):
     """
-    Cuando el aprendiz le pregunta al Agente por diagramas, lógica o qué le falta a su proyecto,
-    el Agente NO inventa respuestas (por si el prompt del aprendiz está mal planteado) y le envía
-    esta solicitud directamente al Instructor activo de la ficha.
+    Registro histórico archivado (Regla No-Delete).
+    Aegis opera de forma autónoma sin escalar consultas al instructor; esta tabla conserva
+    únicamente el historial previo marcado como `archivada_por_cambio_de_politica`.
     """
 
     class EstadoConsulta(models.TextChoices):
-        PENDIENTE = "PENDIENTE", "Pendiente por revisar el instructor"
-        ATENDIDA = "ATENDIDA", "Atendida por el instructor"
+        PENDIENTE = "PENDIENTE", "Pendiente (histórico)"
+        ATENDIDA = "ATENDIDA", "Atendida (histórico)"
+        ARCHIVADA_POR_CAMBIO_DE_POLITICA = (
+            "archivada_por_cambio_de_politica",
+            "Archivada por cambio de política",
+        )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     ficha = models.ForeignKey(
@@ -107,9 +112,9 @@ class ConsultaEscaladaInstructor(models.Model):
     )
     respuesta_instructor = models.TextField(blank=True)
     estado = models.CharField(
-        max_length=15,
+        max_length=40,
         choices=EstadoConsulta.choices,
-        default=EstadoConsulta.PENDIENTE,
+        default=EstadoConsulta.ARCHIVADA_POR_CAMBIO_DE_POLITICA,
     )
     creado_en = models.DateTimeField(auto_now_add=True)
     respondido_en = models.DateTimeField(null=True, blank=True)

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ComentarioRevision, ConsultaEscaladaInstructor, Reporte
+from .models import ComentarioRevision, Reporte
 
 
 class ComentarioRevisionSerializer(serializers.ModelSerializer):
@@ -51,51 +51,6 @@ class ResponderComentarioGrupoSerializer(serializers.Serializer):
         min_length=3,
         help_text="Ej: 'Gracias profe, ya se corrigió en esta subida.'",
     )
-
-
-class ConsultaEscaladaInstructorSerializer(serializers.ModelSerializer):
-    aprendiz_nombre = serializers.CharField(
-        source="aprendiz.nombre_completo", read_only=True
-    )
-    aprendiz_documento = serializers.CharField(
-        source="aprendiz.documento", read_only=True
-    )
-    instructor_nombre = serializers.CharField(
-        source="instructor_destino.nombre_completo", read_only=True
-    )
-    proyecto_titulo = serializers.CharField(
-        source="proyecto.titulo", read_only=True, default=None
-    )
-    grupo_nombre = serializers.CharField(
-        source="grupo_scrum.nombre_grupo", read_only=True, default=None
-    )
-    ficha_numero = serializers.CharField(
-        source="ficha.numero", read_only=True, default=None
-    )
-
-    class Meta:
-        model = ConsultaEscaladaInstructor
-        fields = [
-            "id",
-            "ficha",
-            "ficha_numero",
-            "grupo_scrum",
-            "grupo_nombre",
-            "proyecto",
-            "proyecto_titulo",
-            "aprendiz",
-            "aprendiz_nombre",
-            "aprendiz_documento",
-            "instructor_destino",
-            "instructor_nombre",
-            "mensaje_original_aprendiz",
-            "motivo_escalado",
-            "respuesta_instructor",
-            "estado",
-            "creado_en",
-            "respondido_en",
-        ]
-        read_only_fields = fields
 
 
 class ReporteSerializer(serializers.ModelSerializer):

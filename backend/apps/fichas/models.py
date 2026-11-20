@@ -116,15 +116,28 @@ class Matricula(models.Model):
 class GrupoScrum(models.Model):
     """
     Grupo Scrum dentro de una ficha.
-    - Mínimo 2 aprendices activos (validado en servicio/carga masiva).
-    - Si el grupo se separa, el grupo SÍ se puede eliminar/disolver.
+    - Mínimo 2 aprendices activos por equipo.
+    - Regla No-Delete: nunca se borra físicamente; se archiva (`estado = ARCHIVADO`)
+      liberando sus membresías activas y conservando el historial completo.
     """
+
+    class EstadoGrupo(models.TextChoices):
+        BORRADOR = "BORRADOR", "Borrador"
+        PUBLICADO = "PUBLICADO", "Publicado"
+        ARCHIVADO = "ARCHIVADO", "Archivado"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     ficha = models.ForeignKey(
         Ficha, on_delete=models.CASCADE, related_name="grupos_scrum"
     )
     nombre_grupo = models.CharField(max_length=100, help_text="Ej: Grupo Scrum 1")
+    estado = models.CharField(
+        max_length=15,
+        choices=EstadoGrupo.choices,
+        default=EstadoGrupo.BORRADOR,
+        db_index=True,
+    )
+    archivado_en = models.DateTimeField(null=True, blank=True)
     creado_en = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -135,39 +148,78 @@ class GrupoScrum(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["ficha", "nombre_grupo"],
-                name="uq_nombre_grupo_por_ficha",
+                condition=~Q(estado="ARCHIVADO"),
+                name="uq_nombre_grupo_activo_por_ficha",
             )
         ]
 
     def __str__(self) -> str:
-        return f"{self.nombre_grupo} (Ficha {self.ficha.numero})"
+        return f"{self.nombre_grupo} (Ficha {self.ficha.numero} · {self.estado})"
 
 
 class MiembroGrupoScrum(models.Model):
     """
-    Une a cada aprendiz con su Grupo Scrum.
-    - Ningún aprendiz puede estar en más de 1 grupo (`OneToOneField`).
+    Membresía histórica y activa de un aprendiz en un Grupo Scrum de su ficha.
+    - Regla central (PostgreSQL): unicidad parcial sobre `(ficha, aprendiz)`
+      cuando `activo=True`. Un aprendiz nunca puede pertenecer a >1 grupo activo
+      dentro de la misma ficha.
+    - Regla No-Delete: al mover o archivar se cierra (`activo=False`, `fecha_fin=now`)
+      conservando todo el historial.
     """
 
+    class RolScrum(models.TextChoices):
+        SCRUM_MASTER = "SCRUM_MASTER", "Scrum Master"
+        PRODUCT_OWNER = "PRODUCT_OWNER", "Product Owner"
+        DEVELOPER = "DEVELOPER", "Developer"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    grupo = models.ForeignKey(
-        GrupoScrum, on_delete=models.CASCADE, related_name="miembros"
+    ficha = models.ForeignKey(
+        Ficha, on_delete=models.PROTECT, related_name="membresias_grupo_scrum"
     )
-    aprendiz = models.OneToOneField(
+    grupo = models.ForeignKey(
+        GrupoScrum, on_delete=models.PROTECT, related_name="miembros"
+    )
+    aprendiz = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        related_name="miembro_grupo_scrum",
+        related_name="membresias_grupo_scrum",
         limit_choices_to={"rol": "APRENDIZ"},
     )
+    rol_scrum = models.CharField(
+        max_length=20,
+        choices=RolScrum.choices,
+        default=RolScrum.DEVELOPER,
+    )
+    activo = models.BooleanField(default=True, db_index=True)
     fecha_ingreso = models.DateTimeField(auto_now_add=True)
+    fecha_fin = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = "miembros_grupo_scrum"
         verbose_name = "Miembro de Grupo Scrum"
         verbose_name_plural = "Miembros de Grupos Scrum"
+        ordering = ["-activo", "fecha_ingreso"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["ficha", "aprendiz"],
+                condition=Q(activo=True),
+                name="uq_un_grupo_activo_por_ficha_y_aprendiz",
+            ),
+            models.UniqueConstraint(
+                fields=["grupo"],
+                condition=Q(activo=True, rol_scrum="SCRUM_MASTER"),
+                name="uq_un_scrum_master_activo_por_grupo",
+            ),
+            models.UniqueConstraint(
+                fields=["grupo"],
+                condition=Q(activo=True, rol_scrum="PRODUCT_OWNER"),
+                name="uq_un_product_owner_activo_por_grupo",
+            ),
+        ]
 
     def __str__(self) -> str:
-        return f"{self.aprendiz.nombre_completo} en {self.grupo.nombre_grupo}"
+        estado = "ACTIVO" if self.activo else "HISTÓRICO"
+        return f"{self.aprendiz.nombre_completo} en {self.grupo.nombre_grupo} ({self.rol_scrum} - {estado})"
 
 
 class CargaMasiva(models.Model):

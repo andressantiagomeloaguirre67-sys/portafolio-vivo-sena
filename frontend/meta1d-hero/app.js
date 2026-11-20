@@ -46,8 +46,8 @@ const AEGIS_INSIGHTS = [
   },
   {
     led: "#30d158",
-    spec: "Relevo · Activo",
-    text: "Si una consulta involucra diagramas UML o lógica de negocio profunda, la transfiero automáticamente al instructor líder del trimestre.",
+    spec: "Tutoría · Socrática",
+    text: "Acompaño a cada equipo paso a paso con preguntas guiadas sobre alcance, actores, MVP y modelado, sin entregar soluciones hechas.",
   },
 ];
 
