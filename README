@@ -1,1 +1,630 @@
+# Portafolio Vivo SENA ADSO (Vortex)
 
+Plataforma web donde los aprendices del programa **Análisis y Desarrollo de Software (ADSO)** del SENA, organizados en **Grupos Scrum**, publican un único proyecto por grupo, sus instructores lo revisan y el agente de IA **Aegis** verifica que la idea sea original.
+
+---
+
+## ¿Qué es el Portafolio Vivo SENA?
+
+El Portafolio Vivo SENA es un portafolio de proyectos formativos que se mantiene actualizado a lo largo del proceso de formación. Cada Grupo Scrum de una ficha registra la idea de su proyecto, sube sus entregas (siempre queda alojada solo la versión más reciente), recibe comentarios del instructor y deja una bitácora inmutable de lo que hizo cada integrante. Los demás aprendices e instructores pueden explorar los proyectos publicados y ejecutarlos en un entorno aislado (sandbox) sin salir de la plataforma.
+
+## Descripción
+
+La plataforma tiene tres tipos de usuario (aprendiz, instructor y administrador) y cinco módulos de negocio:
+
+| Módulo | Qué resuelve |
+|---|---|
+| `usuarios` | Inicio de sesión con documento, activación de cuenta por correo, recuperación y cambio de contraseña, suspensión de aprendices. |
+| `fichas` | Fichas, rotación trimestral de instructores, carga masiva de aprendices y Grupos Scrum. |
+| `proyectos` | Registro de la idea, validación de originalidad, subida de entregas, bitácora, feed y sandbox. |
+| `revisiones` | Comentarios del instructor, respuestas del grupo, consultas escaladas, reportes y panel del instructor. |
+| `asistente` | Agente Aegis: tutor que orienta al aprendiz y escala al instructor las dudas de diagramas y lógica. |
+
+Reglas de negocio principales (detalladas en [`ARQUITECTURA.md`](ARQUITECTURA.md)):
+
+1. Inicio de sesión por documento; las cuentas se activan por correo y los aprendices **no se eliminan**: se suspenden con un motivo obligatorio.
+2. Rotación trimestral de instructores: una ficha tiene un solo instructor activo y se conserva el historial.
+3. Grupos Scrum de mínimo 2 aprendices, un aprendiz en un solo grupo y un proyecto por grupo.
+4. Cualquier integrante activo del grupo puede subir o retirar el proyecto; solo se conserva la última entrega y cada acción queda en una bitácora inmutable.
+5. El agente de IA valida la originalidad de la idea y escala al instructor activo las consultas de diagramas y lógica.
+
+## Objetivos
+
+### Objetivo general
+
+Ofrecer a los aprendices de ADSO del SENA una plataforma donde cada Grupo Scrum publique un único proyecto original, reciba el acompañamiento y la retroalimentación de su instructor y mantenga un portafolio vivo y verificable, con el apoyo del agente Aegis.
+
+### Objetivos específicos
+
+- Gestionar las cuentas y los permisos de aprendices, instructores y administradores, con acceso por documento de identidad.
+- Organizar las fichas, la rotación trimestral de instructores y los Grupos Scrum, incluida la carga masiva de aprendices desde Excel o CSV con detección de inconsistencias.
+- Permitir que cada grupo registre la idea de su proyecto y verifique su originalidad frente a los demás proyectos antes de aprobarla.
+- Permitir la subida y el reemplazo de entregas manteniendo solo la versión más reciente y una bitácora inmutable de las acciones.
+- Habilitar la ejecución segura de los proyectos publicados en un entorno aislado (sandbox).
+- Facilitar la retroalimentación continua entre instructor y grupo mediante comentarios, respuestas y consultas escaladas.
+- Orientar al aprendiz con un agente de IA que actúe como tutor sin hacerle la tarea.
+
+---
+
+## Product Goal y plan de sprints
+
+### Product Goal
+
+> Ofrecer a los aprendices de ADSO del SENA una plataforma donde cada Grupo Scrum publique un único proyecto original, reciba el acompañamiento y la retroalimentación de su instructor y mantenga un portafolio vivo y verificable, con el apoyo del agente Aegis, que cuida la originalidad de las ideas y orienta sin hacerles la tarea.
+
+### Plan de sprints
+
+Sprints de **1 semana**. El Sprint 1 se ejecuta primero y el resto se planifica en este orden de prioridad (5 sprints, 38 historias).
+
+| Sprint | Enfoque | Historias | Complejidad |
+|---|---|---|---|
+| 1 | Acceso por roles | 7 | 19 |
+| 2 | Idea, originalidad y primera entrega | 6 | 34 |
+| 3 | Gestión de la ficha por el instructor | 7 | 37 |
+| 4 | Revisión y retroalimentación | 8 | 35 |
+| 5 | Administración y cierre de la primera versión | 10 | 34 |
+
+#### Sprint 1 — Acceso por roles
+
+**Sprint Goal:** Al finalizar el Sprint 1, aprendices, instructores y administradores podrán acceder de forma segura a la plataforma con su documento (activar la cuenta, iniciar y cerrar sesión), y el aprendiz podrá recuperar su contraseña y consultar su perfil y su Grupo Scrum, dejando lista la base de acceso por roles sobre la que se construirán los siguientes sprints. Un Grupo Scrum podrá definir su idea con el apoyo de Aegis, comprobar que es original, registrarla, publicar su primera entrega, ejecutarla en el sandbox y ver en la bitácora quién hizo cada cambio.
+Historias: `HU_APR_002`, `HU_APR_001`, `HU_APR_003`, `HU_APR_004`, `HU_APR_015`, `HU_INS_001`, `HU_ADM_001`, `HU_APR_007`, `HU_APR_006`, `HU_APR_005`, `HU_APR_008`, `HU_APR_012`, `HU_APR_010`
+
+**Product Goal:**Ofrecer a los aprendices de ADSO del SENA una plataforma donde cada Grupo Scrum publique un único proyecto original, reciba el acompañamiento y la retroalimentación de su instructor y mantenga un portafolio vivo y verificable, con el apoyo del agente Aegis, que cuida la originalidad de las ideas y orienta sin hacerles la tarea.
+
+---
+
+## Stack tecnológico
+
+| Capa | Tecnología |
+|---|---|
+| Backend | Python, Django 5.1, Django REST Framework |
+| Autenticación | SimpleJWT (JWT, inicio de sesión con documento), `drf-spectacular` para la documentación OpenAPI |
+| Base de datos | PostgreSQL 16 (imagen `pgvector/pgvector:pg16`) con `psycopg 3` |
+| Agente de IA | Motor propio de similitud (vector de 768 dimensiones y `SequenceMatcher`) y flujo del agente en `apps/asistente`; Google Gemini opcional (`GEMINI_API_KEY`) |
+| Tareas y caché | Celery y Redis (definidos en `docker-compose.yml`) |
+| Almacenamiento | MinIO / S3 con `boto3` y `django-storages` (definido en `docker-compose.yml`) |
+| Sandbox | Ruta `/sandbox/<id>/` de Django con Content-Security-Policy; configuración de Nginx en `nginx/sandbox.conf` |
+| Frontend | Aplicación de una sola página en `frontend/index.html` (JavaScript, Tailwind CSS) servida por Django en `/app/`, y página de bienvenida 3D en `frontend/meta1d-hero` (Three.js) |
+| Otros | `openpyxl` (carga masiva Excel), `django-cors-headers`, `python-dotenv` |
+| Contenedores | Docker Compose |
+
+> `frontend/package.json` y `frontend/src/api/client.ts` contienen un cliente de apoyo (React/Vite) que no se usa en la ejecución actual: la plataforma que se ejecuta es `frontend/index.html`.
+
+## Base de datos
+
+- **Motor:** PostgreSQL 16, base `portafolio_sena`, usuario `sena_user` (valores por defecto, configurables con `.env`).
+- **Extensiones:** `vector` y `pg_trgm`, creadas automáticamente por `backend/init_db.sql` al iniciar el contenedor.
+- **Embeddings de ideas:** el campo `embedding_idea` de `proyectos` guarda el vector de 768 dimensiones como `ArrayField` de PostgreSQL.
+- **Zona horaria e idioma:** `America/Bogota` y `es-co`.
+
+| Tabla | Contenido |
+|---|---|
+| `usuarios` | Usuarios con rol (`ADMIN`, `INSTRUCTOR`, `APRENDIZ`) y estado de cuenta (`PENDIENTE`, `ACTIVO`, `SUSPENDIDO`). |
+| `fichas` | Fichas de formación. |
+| `asignaciones_instructor` | Instructor de cada ficha por trimestre, con una sola asignación activa. |
+| `matriculas` | Aprendices matriculados en cada ficha. |
+| `grupos_scrum` y `miembros_grupo_scrum` | Grupos Scrum y sus integrantes. |
+| `cargas_masivas` | Historial de las cargas de aprendices y sus alertas. |
+| `proyectos` | Proyecto del grupo: título, introducción, tecnologías, visibilidad, estado y número de entrega. |
+| `historial_proyectos` | Bitácora inmutable de acciones sobre el proyecto. |
+| `comentarios_revision` | Comentarios del instructor y respuestas del grupo. |
+| `consultas_escaladas_instructor` | Consultas que el agente escala al instructor. |
+| `reportes_proyectos` | Reportes de proyectos y su moderación. |
+
+## Configuración de credenciales
+
+Las credenciales y claves se leen del archivo `.env` de la raíz del proyecto.
+
+1. Copia la plantilla:
+
+   ```bash
+   # Linux / macOS
+   cp .env.example .env
+
+   # Windows (PowerShell)
+   Copy-Item .env.example .env
+   ```
+
+2. Ajusta los valores de `.env`:
+
+| Variable | Para qué sirve |
+|---|---|
+| `SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS` | Configuración de Django. |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` | Conexión a PostgreSQL. Docker Compose usa las mismas variables para crear la base. |
+| `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` | Redis y Celery. |
+| `MINIO_ENDPOINT`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`, `MINIO_BUCKET_PROYECTOS`, `SANDBOX_BASE_URL` | MinIO y sandbox. |
+| `GEMINI_API_KEY`, `GEMINI_MODEL`, `GEMINI_EMBEDDING_MODEL` | Agente de IA con Google Gemini. Es opcional: sin clave el agente responde con su lógica básica. |
+| `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `FRONTEND_URL` | Correo de activación y recuperación. Por defecto los correos se imprimen en la consola. |
+
+3. Para enviar correos reales, cambia `EMAIL_BACKEND` a `django.core.mail.backends.smtp.EmailBackend` y usa en `EMAIL_HOST_PASSWORD` una contraseña de aplicación de Gmail.
+
+> **Seguridad:** `.env` está en `.gitignore` y no debe subirse al repositorio. Los valores de `.env.example` son solo para desarrollo: en cualquier entorno compartido o de producción cambia `SECRET_KEY`, `DEBUG=False` y todas las contraseñas.
+
+## Ejecución del código
+
+### Requisitos
+
+- Python 3.10 o superior
+- Docker y Docker Compose
+- Git
+
+### Pasos
+
+1. **Clona el repositorio y crea el `.env`** (ver la sección anterior):
+
+   ```bash
+   git clone https://github.com/andressantiagomeloaguirre67-sys/portafolio-vivo-sena.git
+   cd portafolio-vivo-sena
+   ```
+
+2. **Levanta la base de datos** (los demás servicios son opcionales para el flujo actual):
+
+   ```bash
+   docker compose up -d postgres
+   # opcional: redis, minio y nginx-sandbox
+   docker compose up -d
+   ```
+
+3. **Crea el entorno virtual e instala las dependencias:**
+
+   ```bash
+   cd backend
+
+   # Linux / macOS
+   python3 -m venv .venv
+   source .venv/bin/activate
+
+   # Windows (PowerShell)
+   python -m venv .venv
+   .venv\Scripts\Activate.ps1
+
+   pip install -r requirements.txt
+   ```
+
+4. **Crea las tablas y, si quieres, los datos de demostración:**
+
+   ```bash
+   python manage.py migrate
+   python manage.py seed_sena      # opcional: fichas, usuarios y proyectos de ejemplo
+   ```
+
+5. **Inicia el servidor:**
+
+   ```bash
+   python manage.py runserver 0.0.0.0:8000
+   ```
+
+6. **Abre en el navegador:**
+
+   | Dirección | Qué es |
+   |---|---|
+   | `http://localhost:8000/` | Página de bienvenida 3D |
+   | `http://localhost:8000/app/` | Plataforma (aprendiz, instructor y administrador) |
+   | `http://localhost:8000/api/docs/` | Documentación Swagger de la API |
+   | `http://localhost:8000/admin/` | Panel de administración de Django |
+
+### Pruebas
+
+```bash
+cd backend
+python manage.py test
+```
+
+Las pruebas necesitan la base PostgreSQL en ejecución.
+
+---
+
+## Roles del usuario
+
+| Rol | Valor | Qué puede hacer |
+|---|---|---|
+| **Aprendiz** | `APRENDIZ` | Activar su cuenta, iniciar sesión, registrar y validar la idea de su grupo, conversar con Aegis, subir o retirar entregas, responder los comentarios del instructor, consultar la bitácora, explorar y ejecutar proyectos y reportar proyectos. |
+| **Instructor** | `INSTRUCTOR` | Consultar sus fichas, cargar aprendices de forma masiva, conformar y disolver grupos, suspender aprendices, comentar proyectos, atender consultas escaladas, moderar reportes y usar el panel y el buscador. |
+| **Administrador** | `ADMIN` | Registrar instructores, crear y editar fichas, rotar el instructor trimestral y supervisar aprendices y grupos de cualquier ficha. |
+
+> Hoy, en el código, registrar instructores y rotar la ficha están abiertos a cualquier instructor, no solo al administrador. Está pendiente restringirlos.
+
+## Historias de usuario
+
+Total: 38 historias. Aprendiz (15), Instructor (15) y Administrador (8). El detalle de cada una está en los issues del repositorio.
+
+### Aprendiz
+
+**HU_APR_001 — Activar la cuenta**
+
+> Como aprendiz con cuenta pendiente de activación,  
+> quiero activar mi cuenta desde el enlace que recibí en mi correo,  
+> para definir mi contraseña y poder ingresar a la plataforma.
+
+**HU_APR_002 — Iniciar sesión con documento**
+
+> Como aprendiz con cuenta activa,  
+> quiero iniciar sesión con mi documento de identidad y contraseña,  
+> para acceder de forma segura a las funcionalidades disponibles para aprendices.
+
+**HU_APR_003 — Recuperar la contraseña**
+
+> Como aprendiz que olvidó su contraseña,  
+> quiero restablecer mi contraseña mediante un enlace enviado a mi correo,  
+> para recuperar el acceso a mi cuenta sin intervención del instructor.
+
+**HU_APR_004 — Gestionar el perfil y la contraseña**
+
+> Como aprendiz,  
+> quiero consultar mi información personal y cambiar mi contraseña,  
+> para verificar mis datos, mi ficha y mi Grupo Scrum, y mantener segura mi cuenta.
+
+**HU_APR_005 — Conversar con el agente Aegis para definir la idea**
+
+> Como aprendiz de un Grupo Scrum,  
+> quiero conversar con el agente Aegis para encontrar y definir la idea de mi proyecto,  
+> para recibir orientación paso a paso, sin que me hagan la tarea, y aprender a plantear el alcance y los objetivos.
+
+**HU_APR_006 — Validar la originalidad de la idea**
+
+> Como aprendiz de un Grupo Scrum,  
+> quiero verificar si el título y la idea de mi proyecto se parecen a los de otros proyectos,  
+> para evitar proyectos repetidos en el SENA y enfocar mi idea hacia algo original.
+
+**HU_APR_007 — Registrar la idea del proyecto del grupo**
+
+> Como aprendiz activo de un Grupo Scrum,  
+> quiero registrar la idea del proyecto de mi grupo con título, introducción, tecnologías y visibilidad,  
+> para dejar aprobada la idea única del grupo y poder subir después las entregas.
+
+**HU_APR_008 — Subir o reemplazar la entrega del proyecto**
+
+> Como aprendiz activo de un Grupo Scrum,  
+> quiero subir un archivo .zip o código HTML con la entrega más reciente de mi proyecto,  
+> para publicar mi avance en el feed para que el instructor y los compañeros puedan ejecutarlo.
+
+**HU_APR_009 — Consultar y responder los comentarios del instructor**
+
+> Como aprendiz activo de un Grupo Scrum,  
+> quiero ver las observaciones del instructor y responderlas indicando lo corregido,  
+> para dejar constancia de las correcciones realizadas y conservar el hilo de revisión.
+
+**HU_APR_010 — Consultar la bitácora del proyecto**
+
+> Como aprendiz activo de un Grupo Scrum,  
+> quiero consultar el historial de acciones realizadas sobre el proyecto de mi grupo,  
+> para saber quién hizo cada cambio, cuándo y con qué descripción.
+
+**HU_APR_011 — Retirar el proyecto del feed**
+
+> Como aprendiz activo de un Grupo Scrum,  
+> quiero retirar el proyecto de mi grupo indicando el motivo,  
+> para quitarlo del feed cuando ya no deba seguir publicado, dejando constancia de quién lo hizo.
+
+**HU_APR_012 — Explorar el feed y ejecutar proyectos**
+
+> Como aprendiz,  
+> quiero explorar los proyectos publicados y ejecutarlos bajo demanda,  
+> para conocer los proyectos de otros grupos, inspirarme y ver su funcionamiento sin salir de la plataforma.
+
+**HU_APR_013 — Escalar una consulta al instructor y ver su respuesta**
+
+> Como aprendiz de un Grupo Scrum,  
+> quiero enviar al instructor mis dudas de diagramas, lógica o alcance y conocer su respuesta,  
+> para recibir orientación de una persona real sin depender de un prompt bien redactado.
+
+**HU_APR_014 — Reportar un proyecto**
+
+> Como aprendiz,  
+> quiero reportar un proyecto del feed que incumple las normas,  
+> para que el instructor lo revise y, si es necesario, lo retire.
+
+**HU_APR_015 — Cerrar sesión**
+
+> Como aprendiz con sesión iniciada,  
+> quiero cerrar mi sesión,  
+> para finalizar de manera segura el acceso a la plataforma.
+
+### Instructor
+
+**HU_INS_001 — Iniciar sesión y activar la cuenta**
+
+> Como instructor,  
+> quiero activar mi cuenta con el enlace recibido e iniciar sesión con mi documento y contraseña,  
+> para acceder a las herramientas de seguimiento de mis fichas.
+
+**HU_INS_002 — Recuperar y cambiar la contraseña**
+
+> Como instructor,  
+> quiero recuperar mi contraseña por correo y cambiarla cuando lo necesite,  
+> para mantener segura mi cuenta y recuperar el acceso sin ayuda externa.
+
+**HU_INS_003 — Consultar el panel resumen**
+
+> Como instructor,  
+> quiero ver un resumen de mis fichas, grupos, proyectos y pendientes,  
+> para priorizar qué debo atender primero.
+
+**HU_INS_004 — Consultar fichas, aprendices y grupos**
+
+> Como instructor,  
+> quiero consultar mis fichas y los aprendices y Grupos Scrum de cada una,  
+> para conocer la conformación de cada ficha y el estado de cada grupo.
+
+**HU_INS_005 — Cargar aprendices de una ficha de forma masiva**
+
+> Como instructor,  
+> quiero subir un archivo Excel o CSV con los aprendices y su Grupo Scrum,  
+> para registrar a toda la ficha de una sola vez, sin digitar uno por uno.
+
+**HU_INS_006 — Revisar alertas y conformar o reasignar grupos**
+
+> Como instructor,  
+> quiero resolver las alertas de la carga y mover aprendices entre grupos,  
+> para garantizar que cada aprendiz esté en un solo grupo y que cada grupo tenga mínimo dos integrantes.
+
+**HU_INS_007 — Disolver un Grupo Scrum**
+
+> Como instructor,  
+> quiero disolver un grupo que ya no debe existir,  
+> para liberar a sus aprendices para que se agrupen de nuevo.
+
+**HU_INS_008 — Suspender y reactivar aprendices**
+
+> Como instructor,  
+> quiero suspender la cuenta de un aprendiz con un motivo y reactivarla cuando corresponda,  
+> para controlar el acceso sin eliminar el historial del aprendiz.
+
+**HU_INS_009 — Explorar el feed y ejecutar proyectos**
+
+> Como instructor,  
+> quiero ver los proyectos publicados y ejecutarlos en el sandbox,  
+> para evaluar el funcionamiento real de cada entrega.
+
+**HU_INS_010 — Comentar un proyecto**
+
+> Como instructor,  
+> quiero dejar observaciones sobre la entrega actual de un proyecto,  
+> para orientar al grupo sobre qué corregir.
+
+**HU_INS_011 — Consultar el hilo y la bitácora del proyecto**
+
+> Como instructor,  
+> quiero consultar el hilo de comentarios y la bitácora de un proyecto,  
+> para verificar quién hizo cada cambio y la evolución de las entregas.
+
+**HU_INS_012 — Atender las consultas escaladas**
+
+> Como instructor,  
+> quiero ver las consultas que el agente Aegis me envía y responderlas,  
+> para orientar a los aprendices en lo que la IA no debe resolver, como diagramas y lógica.
+
+**HU_INS_013 — Moderar reportes de proyectos**
+
+> Como instructor,  
+> quiero revisar los reportes y decidir retirar el proyecto o descartarlos,  
+> para mantener el feed libre de contenido inapropiado.
+
+**HU_INS_014 — Buscar en toda la plataforma**
+
+> Como instructor,  
+> quiero buscar proyectos, grupos y aprendices con un solo término,  
+> para encontrar rápidamente lo que necesito revisar.
+
+**HU_INS_015 — Cerrar sesión**
+
+> Como instructor con sesión iniciada,  
+> quiero cerrar mi sesión,  
+> para finalizar de forma segura el acceso.
+
+### Administrador
+
+**HU_ADM_001 — Iniciar sesión y activar la cuenta**
+
+> Como administrador,  
+> quiero iniciar sesión con mi documento y contraseña,  
+> para acceder al módulo de administración de la plataforma.
+
+**HU_ADM_002 — Recuperar y cambiar la contraseña**
+
+> Como administrador,  
+> quiero recuperar mi contraseña por correo y cambiarla cuando lo necesite,  
+> para mantener segura una cuenta con altos privilegios.
+
+**HU_ADM_003 — Registrar instructores**
+
+> Como administrador,  
+> quiero registrar un instructor con su documento, nombre y correo,  
+> para que pueda activar su cuenta y recibir fichas asignadas.
+
+**HU_ADM_004 — Consultar instructores disponibles**
+
+> Como administrador,  
+> quiero ver el listado de instructores activos,  
+> para escoger a quién asignar cada ficha.
+
+**HU_ADM_005 — Crear y editar fichas**
+
+> Como administrador,  
+> quiero crear fichas con su número, programa y jornada, y editarlas,  
+> para organizar a los aprendices por formación.
+
+**HU_ADM_006 — Rotar el instructor trimestral de una ficha**
+
+> Como administrador,  
+> quiero asignar un nuevo instructor a una ficha cada trimestre,  
+> para garantizar un solo instructor activo por ficha y conservar el historial.
+
+**HU_ADM_007 — Supervisar aprendices y grupos de una ficha**
+
+> Como administrador,  
+> quiero consultar los aprendices y grupos de cualquier ficha,  
+> para tener visión global de la formación.
+
+**HU_ADM_008 — Cerrar sesión**
+
+> Como administrador con sesión iniciada,  
+> quiero cerrar mi sesión,  
+> para finalizar de forma segura el acceso.
+
+## Requisitos funcionales
+
+| Código | Requisito | Descripción |
+|---|---|---|
+| RQF001 | Autenticación de usuarios | El sistema permitirá a los usuarios iniciar sesión mediante su número de documento de identidad y contraseña, validando sus credenciales y emitiendo una sesión segura para acceder a las funcionalidades de su rol. |
+| RQF002 | Activación de cuenta de aprendiz | El sistema enviará al correo del aprendiz registrado en la carga masiva un enlace de activación, mediante el cual podrá definir su contraseña y aceptar el tratamiento de datos personales. El sistema permitirá reenviar el enlace de activación mientras la cuenta esté pendiente. |
+| RQF003 | Recuperación de contraseña | El sistema permitirá a los usuarios solicitar la recuperación de su contraseña y restablecerla mediante un enlace enviado a su correo electrónico registrado. |
+| RQF004 | Cambio de contraseña | El sistema permitirá a los usuarios autenticados cambiar su contraseña actual por una nueva que cumpla las reglas de seguridad definidas. |
+| RQF005 | Gestión de perfil | El sistema permitirá a los usuarios consultar su información personal registrada en la plataforma, incluyendo su ficha y Grupo Scrum cuando corresponda. |
+| RQF006 | Cierre de sesión | El sistema permitirá a los usuarios cerrar su sesión y finalizar de manera segura el acceso a la plataforma. |
+| RQF007 | Control de acceso según rol | El sistema controlará el acceso a las funcionalidades de acuerdo con el rol asignado a cada usuario, diferenciando los permisos del aprendiz, del instructor y del administrador, y limitando a cada usuario a la información que le corresponde. |
+| RQF008 | Gestión de instructores | El sistema permitirá al administrador registrar instructores, quienes recibirán un enlace de activación por correo, y consultar el listado de instructores activos disponibles para asignar a las fichas. |
+| RQF009 | Suspensión y reactivación de aprendices | El sistema permitirá suspender a un aprendiz registrando obligatoriamente el motivo de la suspensión, y reactivarlo posteriormente. Un aprendiz nunca se elimina de la base de datos; mientras esté suspendido no podrá iniciar sesión ni se tendrá en cuenta en las alertas de aprendices sin proyecto. |
+| RQF010 | Gestión de fichas | El sistema permitirá registrar, consultar y actualizar las fichas de formación, con su número, programa y jornada, y consultar la ficha con su instructor activo y sus indicadores generales. |
+| RQF011 | Rotación trimestral de instructor | El sistema permitirá asignar a una ficha un nuevo instructor al cambiar el trimestre, garantizando que exista un solo instructor activo por ficha, conservando el historial de instructores anteriores y trasladando al nuevo instructor las consultas pendientes. |
+| RQF012 | Carga masiva de aprendices y Grupos Scrum | El sistema permitirá al instructor cargar un archivo Excel o CSV con nombre completo, documento, correo y Grupo Scrum de los aprendices de una ficha. El sistema creará las cuentas, matriculará a los aprendices, conformará los grupos y enviará los correos de activación. También ofrecerá una plantilla descargable del archivo y registrará cada carga realizada. |
+| RQF013 | Alertas de inconsistencias en la carga | El sistema validará la carga masiva y alertará cuando un documento o nombre completo aparezca repetido en varios grupos, cuando un grupo tenga menos de dos aprendices o cuando existan correos o documentos en conflicto, sin procesar la carga hasta que se corrijan. |
+| RQF014 | Conformación y reasignación de Grupos Scrum | El sistema permitirá crear Grupos Scrum y mover aprendices activos de una ficha entre grupos, garantizando que cada aprendiz pertenezca a un solo grupo y que ningún grupo quede con menos de dos aprendices activos. |
+| RQF015 | Disolución de Grupos Scrum | El sistema permitirá disolver un Grupo Scrum que se separe para reasignar a sus aprendices, sin eliminar en ningún caso a los aprendices. |
+| RQF016 | Consulta de aprendices y grupos de una ficha | El sistema permitirá consultar los aprendices de una ficha con búsqueda por nombre, documento o correo y filtro por estado de cuenta, los Grupos Scrum con sus integrantes y los aprendices sin proyecto registrado. |
+| RQF017 | Registro de la idea del proyecto | El sistema permitirá a cualquier aprendiz activo del Grupo Scrum registrar o actualizar la idea de su proyecto, indicando título, introducción, tecnologías y visibilidad (solo la ficha o público). Cada Grupo Scrum tendrá un único proyecto y el título no podrá repetirse. |
+| RQF018 | Validación de originalidad de la idea | El sistema permitirá a los aprendices verificar si el título y la idea propuestos se parecen a los de otros proyectos registrados, mostrando los proyectos similares y su porcentaje de similitud, para evitar proyectos repetidos. |
+| RQF019 | Tutoría de la idea con el Agente IA | El sistema permitirá a los aprendices conversar con un asistente de IA que los guíe paso a paso, con una pregunta a la vez, para definir el alcance y los objetivos de su proyecto, sin escribir código ni resolver las tareas por ellos. |
+| RQF020 | Escalado de consultas al instructor | Cuando el aprendiz pregunte al agente por diagramas, lógica del proyecto o qué le falta, el sistema no responderá con correcciones propias sino que enviará automáticamente la consulta al instructor activo de la ficha. |
+| RQF021 | Atención de consultas escaladas | El sistema permitirá al instructor consultar las consultas escaladas pendientes de sus fichas y responderlas, y permitirá a los aprendices del grupo consultar el estado y la respuesta recibida. |
+| RQF022 | Carga y reemplazo de la entrega del proyecto | El sistema permitirá a cualquier aprendiz activo del Grupo Scrum subir la entrega del proyecto como archivo .zip o como código HTML, indicando el punto de entrada y una descripción del cambio. El sistema validará el contenido, alojará únicamente la versión más reciente reemplazando la anterior y registrará el número de entrega. |
+| RQF023 | Retiro del proyecto por el grupo | El sistema permitirá a cualquier aprendiz activo del Grupo Scrum retirar el proyecto del feed indicando el motivo, liberando el archivo alojado y conservando el registro de la acción. |
+| RQF024 | Bitácora del proyecto | El sistema registrará cada acción realizada sobre un proyecto (registro de la idea, subida de código, respuesta a comentarios, retiro y cambios de estado) con el nombre y documento del aprendiz, la acción, el número de entrega y la fecha y hora exactas, y permitirá consultarla. |
+| RQF025 | Feed de proyectos | El sistema permitirá consultar un listado paginado de proyectos publicados, con búsqueda y filtros por ficha y tecnología, respetando la visibilidad definida por cada grupo y mostrando el equipo, la entrega actual y los comentarios del instructor. |
+| RQF026 | Ejecución del proyecto en entorno aislado | El sistema permitirá ejecutar el proyecto publicado bajo demanda en un entorno aislado (sandbox), dentro de la plataforma o en una pestaña nueva, sin acceso a la sesión ni a los datos de la plataforma. |
+| RQF027 | Comentarios de revisión del instructor | El sistema permitirá al instructor dejar observaciones sobre la entrega vigente de un proyecto, quedando asociadas al número de entrega revisada. |
+| RQF028 | Respuesta del grupo a los comentarios | El sistema permitirá a cualquier aprendiz activo del Grupo Scrum responder a un comentario del instructor indicando la corrección realizada, y conservará el hilo completo de comentarios y respuestas del proyecto. |
+| RQF029 | Consulta del hilo de comentarios | El sistema permitirá consultar el hilo completo de comentarios del instructor y respuestas del grupo de un proyecto. |
+| RQF030 | Reporte de proyectos | El sistema permitirá a los usuarios reportar un proyecto indicando el motivo y consultar el estado de los reportes que hayan creado. |
+| RQF031 | Moderación de reportes | El sistema permitirá al instructor o administrador consultar los reportes y resolverlos, ya sea retirando el proyecto del feed con una nota de resolución o descartando el reporte. |
+| RQF032 | Panel resumen del instructor | El sistema permitirá al instructor y al administrador consultar un tablero con indicadores de sus fichas: grupos Scrum, proyectos publicados, ideas aprobadas sin código, aprendices activos y suspendidos, consultas pendientes y reportes pendientes. |
+| RQF033 | Buscador global | El sistema permitirá al instructor y al administrador buscar de forma unificada aprendices, Grupos Scrum y proyectos, con filtro opcional por ficha. |
+
+## Requisitos no funcionales
+
+| Código | Requisito | Descripción |
+|---|---|---|
+| RQNF001 | Usabilidad | El sistema deberá contar con una interfaz intuitiva y en español, que permita a aprendices, instructores y administradores navegar por la plataforma sin dificultad y completar sus tareas principales (activar la cuenta, registrar la idea, subir la entrega, comentar) de manera rápida. |
+| RQNF002 | Interfaz gráfica | El sistema deberá contar con una interfaz gráfica organizada por paneles según el rol, con menús, tarjetas y botones claros, y con soporte de tema claro y oscuro. |
+| RQNF003 | Diseño adaptable | El sistema deberá adaptarse a distintos tamaños de pantalla, incluidos teléfonos celulares, para que los aprendices puedan consultar el feed y su panel desde cualquier dispositivo. |
+| RQNF004 | Seguridad de acceso | El sistema deberá garantizar la seguridad de la información mediante autenticación de usuarios, control de acceso por roles y por ficha, contraseñas almacenadas con cifrado seguro, validación de la fortaleza de las contraseñas, enlaces de activación y recuperación de un solo uso y con vencimiento, y limitación de intentos para evitar abusos. |
+| RQNF005 | Seguridad del entorno de ejecución | El sistema deberá ejecutar el código subido por los aprendices en un entorno aislado de la plataforma (origen distinto, política de seguridad de contenido estricta y sin acceso a la sesión, cookies o almacenamiento local), y deberá escapar todo contenido ingresado por los usuarios antes de mostrarlo para evitar la ejecución de scripts no autorizados. |
+| RQNF006 | Protección de datos personales | El sistema deberá proteger los datos personales de aprendices e instructores conforme a la normativa colombiana de protección de datos (Ley 1581 de 2012), registrando la aceptación del tratamiento de datos y mostrando a cada usuario únicamente la información que su rol y su ficha le permiten ver. |
+| RQNF007 | Integridad de los datos | El sistema deberá garantizar la consistencia de la información mediante restricciones en la base de datos: un solo instructor activo por ficha, una sola matrícula activa por aprendiz, un aprendiz en un solo Grupo Scrum, un proyecto por grupo y título de proyecto único. |
+| RQNF008 | Conservación y trazabilidad | El sistema no deberá eliminar aprendices ni la bitácora de acciones, los comentarios y respuestas, ni el historial de instructores; toda suspensión, retiro o resolución deberá quedar registrada con su autor, fecha y motivo. |
+| RQNF009 | Rendimiento | El sistema deberá responder a las consultas de los usuarios, como el feed, las búsquedas y la validación de originalidad, en un tiempo máximo de 5 segundos, y procesar en segundo plano las tareas largas como el envío de correos y la carga masiva. |
+| RQNF010 | Almacenamiento | El sistema deberá alojar únicamente la versión más reciente de cada proyecto, eliminando la anterior al reemplazarla, y deberá limitar el tamaño y el tipo de los archivos cargados para proteger el espacio del servidor. |
+| RQNF011 | Disponibilidad del asistente de IA | El sistema deberá seguir ofreciendo orientación básica al aprendiz cuando el servicio externo de inteligencia artificial no esté disponible o no esté configurado. |
+| RQNF012 | Compatibilidad | El sistema deberá funcionar en los principales navegadores web como Google Chrome, Mozilla Firefox y Microsoft Edge. |
+| RQNF013 | Arquitectura del sistema | El sistema deberá estar desarrollado bajo una arquitectura multicapa (cliente web, API en el servidor y base de datos), con el servidor organizado en módulos independientes: usuarios, fichas, proyectos, revisiones y asistente. |
+| RQNF014 | Mantenibilidad y documentación | El sistema deberá contar con pruebas automatizadas de las reglas de negocio y con la documentación de su API (OpenAPI/Swagger) para facilitar su mantenimiento y evolución. |
+| RQNF015 | Despliegue | El sistema deberá poder desplegarse de forma reproducible mediante contenedores (base de datos, cola de tareas, almacenamiento de archivos, API y servidor del entorno aislado) configurados por variables de entorno, sin credenciales dentro del código. |
+| RQNF016 | Escalabilidad | El sistema deberá permitir futuras mejoras como la integración de nuevos módulos, nuevas fichas y programas de formación, y la comparación semántica avanzada de ideas. |
+
+---
+
+## Estructura del proyecto
+
+```text
+portafolio-vivo-sena/
+├── ARQUITECTURA.md              # Especificación técnica y reglas de negocio
+├── README.md
+├── docker-compose.yml           # PostgreSQL, Redis, MinIO y Nginx del sandbox
+├── .env.example                 # Plantilla de variables de entorno
+├── .gitignore
+├── docs/                        # Documento de arquitectura (Word)
+├── nginx/
+│   └── sandbox.conf             # Aislamiento del sandbox
+├── backend/
+│   ├── manage.py
+│   ├── requirements.txt
+│   ├── init_db.sql              # Extensiones vector y pg_trgm
+│   ├── config/                  # settings, urls, wsgi/asgi y celery
+│   └── apps/
+│       ├── usuarios/            # Autenticación por documento y gestión de cuentas
+│       ├── fichas/              # Fichas, rotación, carga masiva y Grupos Scrum
+│       ├── proyectos/           # Proyecto, entregas, bitácora, feed y sandbox
+│       ├── revisiones/          # Comentarios, consultas escaladas, reportes y panel
+│       └── asistente/           # Agente Aegis
+└── frontend/
+    ├── index.html               # Aplicación de una sola página con las vistas por rol
+    ├── meta1d-hero/             # Página de bienvenida 3D (Three.js)
+    ├── src/api/client.ts        # Cliente HTTP de apoyo
+    ├── package.json
+    └── vite.config.ts
+```
+
+Cada app del backend contiene `models.py`, `views.py`, `serializers.py`, `urls.py` y `migrations/` (más `services.py`, `tasks.py` o `tests.py` según el módulo).
+
+## Rutas principales
+
+### Aplicación y sistema
+
+| Ruta | Descripción |
+|---|---|
+| `/` | Página de bienvenida 3D |
+| `/app/` | Plataforma multi-rol |
+| `/admin/` | Panel de administración de Django |
+| `/api/docs/` y `/api/schema/` | Swagger y esquema OpenAPI |
+| `/api/v1/health/` | Estado del backend y de la base de datos |
+| `/sandbox/<proyecto_id>/` y `/sandbox/<proyecto_id>/<recurso>` | Ejecución aislada de un proyecto |
+
+### API (`/api/v1/`)
+
+**Usuarios — `/api/v1/auth/`**
+
+| Ruta | Descripción |
+|---|---|
+| `login/` | Inicio de sesión con documento y contraseña |
+| `refresh/` | Renovar el token |
+| `me/` | Perfil del usuario autenticado |
+| `activar-cuenta/` y `reenviar-activacion/` | Activar la cuenta o reenviar el enlace |
+| `recuperar-clave/solicitar/` y `recuperar-clave/confirmar/` | Recuperar la contraseña |
+| `cambiar-clave/` | Cambiar la contraseña |
+| `instructores/` | Gestión de instructores |
+| `aprendices/<id>/suspender/` y `aprendices/<id>/reactivar/` | Suspender o reactivar un aprendiz |
+
+**Fichas — `/api/v1/fichas/`**
+
+| Ruta | Descripción |
+|---|---|
+| `/` (raíz del módulo) | Listar y crear fichas |
+| `instructores/` | Instructores activos |
+| `<ficha_id>/` | Detalle de la ficha |
+| `<ficha_id>/rotar-instructor/` y `<ficha_id>/historial-instructores/` | Rotación e historial de instructores |
+| `<ficha_id>/carga-masiva/` y `<ficha_id>/cargas-masivas/` | Carga masiva e historial de cargas |
+| `<ficha_id>/grupos-scrum/` y `<ficha_id>/grupos-scrum/conformar/` | Listar y conformar grupos |
+| `grupos-scrum/<grupo_id>/disolver/` | Disolver un grupo |
+| `<ficha_id>/aprendices/` | Aprendices de la ficha |
+| `<ficha_id>/alertas-sin-proyecto/` | Aprendices sin proyecto |
+
+**Proyectos — `/api/v1/proyectos/`**
+
+| Ruta | Descripción |
+|---|---|
+| `feed/` | Feed de proyectos publicados |
+| `validar-idea/` | Validar la originalidad de una idea |
+| `mi-grupo/` | Proyecto del grupo del aprendiz |
+| `mi-grupo/subir-codigo/` | Subir o reemplazar la entrega |
+| `<proyecto_id>/` | Detalle del proyecto |
+| `<proyecto_id>/historial/` | Bitácora del proyecto |
+| `<proyecto_id>/ejecutar/` | Información para ejecutar en el sandbox |
+| `<proyecto_id>/retirar-instructor/` | Retiro por el instructor |
+| `<proyecto_id>/url-subida/` y `<proyecto_id>/confirmar-subida/` | Subida firmada |
+
+**Revisiones — `/api/v1/revisiones/`**
+
+| Ruta | Descripción |
+|---|---|
+| `resumen-instructor/` | Panel resumen del instructor |
+| `buscador-instructor/` | Buscador global |
+| `proyectos/<proyecto_id>/comentarios/` | Comentarios de un proyecto |
+| `comentarios/<comentario_id>/responder/` | Respuesta del grupo |
+| `consultas-escaladas/` y `consultas-escaladas/<consulta_id>/responder/` | Consultas escaladas |
+| `reportes/` y `reportes/<reporte_id>/resolver/` | Reportes y su moderación |
+
+**Asistente — `/api/v1/asistente/`**
+
+| Ruta | Descripción |
+|---|---|
+| `consultar/` | Conversar con el agente Aegis |
