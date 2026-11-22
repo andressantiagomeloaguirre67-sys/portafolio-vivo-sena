@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vortex. Intelligence for ADSO.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=4" />
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem("vortex_theme") || "dark";
+      document.documentElement.setAttribute("data-theme", savedTheme);
+    })();
+  </script>
+</head>
+<body>
+  <!-- Lienzo WebGL Three.js (Espiral de Cromo Líquido + Iluminación de Estudio Dinámica) -->
+  <canvas id="webgl-canvas" aria-hidden="true"></canvas>
+
+  <!-- Barra de Navegación Global estilo Apple Glass -->
+  <header class="global-nav" id="main-navbar">
+    <div class="nav-content">
+      <a href="#top" class="brand-mark" aria-label="Vortex ADSO">
+        <svg class="brand-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" />
+          <path d="M2 17l10 5 10-5" />
+          <path d="M2 12l10 5 10-5" />
+        </svg>
+        <span class="brand-title">Vortex</span>
+        <span class="brand-tag">ADSO Pro</span>
+      </a>
+
+      <nav class="nav-links" aria-label="Secciones principales">
+        <a href="#overview" class="nav-item active">Visión</a>
+        <a href="#aegis-section" class="nav-item">Aegis Neural</a>
+        <a href="#bento-architecture" class="nav-item">Arquitectura</a>
+        <button type="button" class="nav-item nav-replay" id="btn-replay-intro">
+          Repetir intro
+        </button>
+      </nav>
+
+      <div class="nav-actions">
+        <button type="button" class="btn-theme-toggle" id="btn-theme-home" title="Cambiar entre Modo Oscuro y Modo Claro">
+          <!-- Icono Sol -->
+          <svg id="home-icon-sun" class="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke-linecap="round" />
+          </svg>
+          <!-- Icono Luna -->
+          <svg id="home-icon-moon" class="theme-icon is-hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span id="home-theme-label">Modo Claro</span>
+        </button>
+
+        <a href="/app/" class="btn-apple-primary" id="btn-login-top">
+          <span>Iniciar sesión</span>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75">
+            <path d="M6 3l5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Escenario Principal -->
+  <main class="apple-stage" id="top">
+
+    <!-- Secuencia Central: Ensamblaje + Humanoide de Cromo Pulido + Tipografía Editorial -->
+    <section class="hero-showcase" id="overview">
+      <!-- Indicador sutil durante el vórtice inicial -->
+      <div class="assembly-caption" id="assembly-phase-badge">
+        <span class="caption-dot"></span>
+        <span id="assembly-phase-text">Sintetizando arquitectura de cromo y núcleo neural</span>
+      </div>
+
+      <div class="hero-composition" id="hero-composition">
+        <!-- Columna Editorial Izquierda (Estilo Apple Pro) -->
+        <div class="hero-copy" id="hero-title-rise">
+          <p class="eyebrow-label" id="hero-eyebrow">PORTAFOLIO VIVO SENA · ARQUITECTURA ADSO</p>
+          <h1 class="display-headline" id="scramble-title" data-text="Más allá del código.">
+            Más allá del código.
+          </h1>
+          <p class="display-subheadline" id="hero-subtitle">
+            Diseñado para preservar cada línea de ingeniería. Impulsado por <strong>Aegis</strong>, una inteligencia semántica que protege la originalidad, ejecuta proyectos en vivo y conecta aprendices e instructores en un solo ecosistema continuo.
+          </p>
+
+          <div class="hero-cta-row" id="hero-cta-row">
+            <a href="/app/" class="btn-hero-solid">
+              Entrar a la plataforma
+            </a>
+            <a href="#bento-architecture" class="btn-hero-link">
+              <span>Explorar la arquitectura</span>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M6 3l5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+          </div>
+
+          <!-- Especificaciones minimalistas de precisión -->
+          <div class="precision-metrics" id="precision-metrics">
+            <div class="metric-col">
+              <span class="metric-number"><span id="counter-value">0.0</span><small>ms</small></span>
+              <span class="metric-caption">Latencia vectorial pgvector de 768 dimensiones</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric-col">
+              <span class="metric-number">100<small>%</small></span>
+              <span class="metric-caption">Ejecución aislada en Sandbox sin servidores externos</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Columna Central/Derecha: Guardián Cibernético Aegis 8K con seguimiento ocular 3D -->
+        <div class="aegis-figure-stage" id="aegis-section">
+          <div class="aegis-halo-ring"></div>
+          <div class="aegis-specular-backlight"></div>
+
+          <figure class="aegis-sculpture-frame" id="aegis-sculpture-frame" title="Mueve el cursor: los ojos de Aegis siguen tu posición en tiempo real">
+            <div class="aegis-body-rig" id="aegis-body-rig">
+              <div class="aegis-float-wrapper" id="aegis-float-wrapper">
+                <!-- Imagen hiperrealista del robot (Gris Titanio, Azul Eléctrico y Rojo Carmesí) -->
+                <img
+                  src="/assets/robot.png?v=4"
+                  alt="Guardián Cibernético Aegis con armadura gris titanio, núcleo azul y ojos rojos"
+                  class="aegis-layer-img aegis-robot-img"
+                />
+
+                <!-- Cristal azul eléctrico en la frente (56.63%, 15.82%) -->
+                <span class="aegis-forehead-gem" id="aegis-forehead-gem" aria-hidden="true"></span>
+
+                <!-- Ojo Izquierdo 3D que sigue exclusivamente al cursor (53.32%, 23.50%) -->
+                <span class="aegis-eye-socket aegis-eye-socket-left" aria-hidden="true">
+                  <span class="aegis-eye-pupil" id="aegis-eye-left"></span>
+                </span>
+
+                <!-- Ojo Derecho 3D que sigue exclusivamente al cursor (59.40%, 23.18%) -->
+                <span class="aegis-eye-socket aegis-eye-socket-right" aria-hidden="true">
+                  <span class="aegis-eye-pupil" id="aegis-eye-right"></span>
+                </span>
+
+                <!-- Núcleo del reactor en el pecho (Azul + Rojo carmesí, 44.40%, 49.93%) -->
+                <span class="aegis-chest-core" id="aegis-chest-core" aria-hidden="true"></span>
+              </div>
+            </div>
+
+            <!-- Brillo especular dinámico -->
+            <div class="aegis-chrome-sheen" id="aegis-chrome-sheen"></div>
+          </figure>
+
+          <!-- Tarjeta flotante de cristal esmerilado estilo Apple VisionOS -->
+          <aside class="vision-glass-pill" id="agent-hud-card">
+            <div class="vision-pill-header">
+              <span class="vision-status-led" id="vision-status-led"></span>
+              <span class="vision-pill-title">Aegis Neural Engine</span>
+              <span class="vision-pill-spec">Titanio · 768-D</span>
+            </div>
+            <p class="vision-pill-body" id="agent-speech-text">
+              Analizo la huella semántica de cada propuesta antes de escribir la primera línea, garantizando proyectos únicos en cada ficha.
+            </p>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección Bento Grid estilo Apple Pro: ¿Para qué sirve y por qué transforma el SENA? -->
+    <section class="bento-section" id="bento-architecture">
+      <div class="bento-header">
+        <p class="eyebrow-label">INGENIERÍA DE PRECISIÓN</p>
+        <h2 class="section-headline">Todo lo que un proyecto necesita.<br /><span>Nada que se interponga.</span></h2>
+      </div>
+
+      <div class="bento-grid" id="intro-panel">
+        <!-- Bento 1: Aegis Guardián Semántico (Span 7) -->
+        <article class="bento-card bento-span-7">
+          <div class="bento-card-top">
+            <span class="bento-kicker">ORIGINALIDAD GARANTIZADA</span>
+            <svg class="bento-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 3v18M3 12h18" stroke-opacity="0.35" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </div>
+          <h3 class="bento-title">Auditoría semántica antes de empezar.</h3>
+          <p class="bento-description">
+            Olvida los proyectos repetidos trimestre tras trimestre. <strong>Aegis</strong> transforma la idea de cada grupo Scrum en un vector matemático de 768 dimensiones, detecta colisiones conceptuales en milisegundos y propone giros de arquitectura en tiempo real.
+          </p>
+        </article>
+
+        <!-- Bento 2: Sandbox en Vivo (Span 5) -->
+        <article class="bento-card bento-span-5">
+          <div class="bento-card-top">
+            <span class="bento-kicker">EJECUCIÓN INSTANTÁNEA</span>
+            <svg class="bento-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+              <rect x="3" y="4" width="18" height="16" rx="3" />
+              <path d="M9 9l6 3-6 3V9z" />
+            </svg>
+          </div>
+          <h3 class="bento-title">Del paquete .zip a ejecución en vivo.</h3>
+          <p class="bento-description">
+            Sin configuraciones locales ni enlaces caídos. Cada entrega se despliega en un contenedor Sandbox aislado con políticas de seguridad CSP listas para evaluación inmediata.
+          </p>
+        </article>
+
+        <!-- Bento 3: Continuidad de Instructores (Span 5) -->
+        <article class="bento-card bento-span-5">
+          <div class="bento-card-top">
+            <span class="bento-kicker">CONTINUIDAD ACADÉMICA</span>
+            <svg class="bento-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M17 3l4 4-4 4" />
+              <path d="M3 11V9a4 4 0 014-4h14" />
+              <path d="M7 21l-4-4 4-4" />
+              <path d="M21 13v2a4 4 0 01-4 4H3" />
+            </svg>
+          </div>
+          <h3 class="bento-title">Rotación trimestral sin pérdida de contexto.</h3>
+          <p class="bento-description">
+            Cuando una ficha cambia de instructor líder, el historial técnico, los equipos Scrum y las observaciones docentes se transfieren de forma transparente e inmediata.
+          </p>
+        </article>
+
+        <!-- Bento 4: Trazabilidad Inmutable (Span 7) -->
+        <article class="bento-card bento-span-7">
+          <div class="bento-card-top">
+            <span class="bento-kicker">MEMORIA INSTITUCIONAL</span>
+            <svg class="bento-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+          </div>
+          <h3 class="bento-title">Registro inmutable y roles diseñados al detalle.</h3>
+          <p class="bento-description">
+            Vistas dedicadas para <strong>Aprendices</strong>, <strong>Instructores</strong> y <strong>Administración</strong>. Protección de autoría histórica, carga masiva inteligente de fichas y versión única optimizada por grupo Scrum.
+          </p>
+          <div class="bento-footer-cta">
+            <a href="/app/" class="link-apple-inline">
+              <span>Iniciar sesión en el espacio de trabajo</span>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M6 3l5 5-5 5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <!-- Librerías por CDN: Three.js r128, GLTFLoader, RoomEnvironment, Post-Processing (UnrealBloomPass) y GSAP 3.12 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/environments/RoomEnvironment.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

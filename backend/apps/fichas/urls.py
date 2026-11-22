@@ -1,0 +1,74 @@
+from django.urls import path
+from .views import (
+    AprendicesFichaListView,
+    AprendicesSinProyectoFichaView,
+    ArchivarGrupoScrumView,
+    CambiarEstadoGrupoScrumView,
+    FichaDetailView,
+    FichaListCreateView,
+    GruposScrumFichaListView,
+    HistorialInstructoresFichaView,
+    InstructoresActivosListView,
+    IntegrantesGrupoScrumView,
+    MoverIntegranteGrupoScrumView,
+    RotarInstructorFichaView,
+)
+
+urlpatterns = [
+    path("", FichaListCreateView.as_view(), name="fichas-list-create"),
+    path(
+        "instructores/",
+        InstructoresActivosListView.as_view(),
+        name="fichas-instructores-activos",
+    ),
+    path(
+        "<uuid:ficha_id>/",
+        FichaDetailView.as_view(),
+        name="fichas-detail",
+    ),
+    path(
+        "<uuid:ficha_id>/historial-instructores/",
+        HistorialInstructoresFichaView.as_view(),
+        name="fichas-historial-instructores",
+    ),
+    path(
+        "<uuid:ficha_id>/rotar-instructor/",
+        RotarInstructorFichaView.as_view(),
+        name="fichas-rotar-instructor",
+    ),
+    path(
+        "<uuid:ficha_id>/grupos-scrum/",
+        GruposScrumFichaListView.as_view(),
+        name="fichas-grupos-scrum",
+    ),
+    path(
+        "<uuid:ficha_id>/aprendices/",
+        AprendicesFichaListView.as_view(),
+        name="fichas-aprendices",
+    ),
+    path(
+        "<uuid:ficha_id>/alertas-sin-proyecto/",
+        AprendicesSinProyectoFichaView.as_view(),
+        name="fichas-alertas-sin-proyecto",
+    ),
+    path(
+        "grupos-scrum/<uuid:grupo_id>/estado/",
+        CambiarEstadoGrupoScrumView.as_view(),
+        name="grupos-scrum-estado",
+    ),
+    path(
+        "grupos-scrum/<uuid:grupo_id>/archivar/",
+        ArchivarGrupoScrumView.as_view(),
+        name="grupos-scrum-archivar",
+    ),
+    path(
+        "grupos-scrum/<uuid:grupo_id>/integrantes/",
+        IntegrantesGrupoScrumView.as_view(),
+        name="grupos-scrum-integrantes",
+    ),
+    path(
+        "grupos-scrum/<uuid:grupo_id>/mover-integrante/",
+        MoverIntegranteGrupoScrumView.as_view(),
+        name="grupos-scrum-mover-integrante",
+    ),
+]
